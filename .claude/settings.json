@@ -2,6 +2,16 @@
   "model": "sonnet",
   "autoUpdatesChannel": "latest",
   "theme": "dark",
+  "permissions": {
+    "deny": [
+      "Read(.env)",
+      "Read(.env.*)",
+      "Read(!.env.example)",
+      "Edit(.env)",
+      "Edit(.env.*)",
+      "Edit(!.env.example)"
+    ]
+  },
   "hooks": {
     "PostToolUse": [
       {

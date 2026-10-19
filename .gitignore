@@ -44,3 +44,6 @@ coverage/
 .claude/skills/synced/
 .claude/hooks/auto-commit-push.ps1
 .claude/downloads/
+
+# Profil utilisateur (données perso, gabarit versionné à part)
+data/profil.md
