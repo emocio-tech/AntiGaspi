@@ -9,7 +9,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "powershell -NoProfile -ExecutionPolicy Bypass -File C:\\Users\\fferre\\.claude\\hooks\\auto-commit-push.ps1"
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/run-hook.sh\" auto-commit-push"
           }
         ]
       }
@@ -20,12 +20,12 @@
         "hooks": [
           {
             "type": "command",
-            "command": "powershell -NoProfile -ExecutionPolicy Bypass -File C:\\Users\\fferre\\.claude\\hooks\\pre-commit-check.ps1",
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/run-hook.sh\" pre-commit-check",
             "timeout": 600
           },
           {
             "type": "command",
-            "command": "powershell -NoProfile -ExecutionPolicy Bypass -File C:\\Users\\fferre\\.claude\\hooks\\pre-push-tests.ps1",
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/run-hook.sh\" pre-push-tests",
             "timeout": 900
           }
         ]
@@ -36,7 +36,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "powershell -NoProfile -ExecutionPolicy Bypass -File C:\\Users\\fferre\\.claude\\hooks\\stop-tests.ps1",
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/run-hook.sh\" stop-tests",
             "timeout": 600
           }
         ]

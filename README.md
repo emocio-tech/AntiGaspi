@@ -88,6 +88,16 @@ cp .env.example .env   # puis renseigner la clé API du LLM
 4. **UI** — interface minimaliste d'après les maquettes
 5. Bonus — scan de code-barres, notifications avant péremption, statistiques de gaspillage
 
+## Outillage Claude Code
+
+Le dossier [.claude/](.claude/) contient la config partagée (agents, skills, commandes, hooks).
+
+Les hooks passent par [.claude/hooks/run-hook.sh](.claude/hooks/run-hook.sh), qui choisit le script selon l'OS :
+- **Windows** (Git Bash) → `<hook>.ps1` (PowerShell) ;
+- **Linux / macOS / WSL** → `<hook>.sh` (bash, nécessite `jq`, `python3` ou `node` pour lire le JSON).
+
+Un hook sans script pour l'OS courant ne fait rien. Les hooks actuels (lint + tests avant commit/push, tests en fin de tour) ne s'activent que dans un projet Maven (`pom.xml`).
+
 ## Contribuer
 
 - Branche par fonctionnalité : `feat/<nom>`, `fix/<nom>`
