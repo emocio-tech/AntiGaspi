@@ -39,3 +39,8 @@ venv/
 logs/
 *.log
 coverage/
+
+# Claude Code
+.claude/skills/synced/
+.claude/hooks/auto-commit-push.ps1
+.claude/downloads/
