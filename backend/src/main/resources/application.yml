@@ -7,6 +7,20 @@ spring:
       - optional:file:.env[.properties]
       - optional:file:../.env[.properties]
   ai:
+    model:
+      # Fournisseur de LLM actif : openai (proxy compatible OpenAI) ou bedrock-converse (Bedrock en direct).
+      # Surchargé par LLM_PROVIDER (openai | bedrock) via LlmProviderEnvironmentPostProcessor.
+      chat: openai
+    openai:
+      # Proxy compatible OpenAI qui sert Nova Lite (URL et clé fournies par la formation, dans .env)
+      base-url: ${LLM_BASE_URL:https://api.openai.com}
+      # Valeur factice par défaut pour que l'application démarre sans .env (l'appel échouera alors en 401)
+      api-key: ${LLM_API_KEY:non-configuree}
+      chat:
+        options:
+          model: ${LLM_MODEL:nova-lite}
+          temperature: 0.7
+          max-tokens: 1500
     bedrock:
       aws:
         region: ${AWS_REGION:eu-west-3}
@@ -18,14 +32,14 @@ spring:
         chat:
           options:
             # En région EU, Nova Lite s'appelle via l'inference profile "eu.amazon.nova-lite-v1:0"
-            model: ${LLM_MODEL:eu.amazon.nova-lite-v1:0}
+            model: ${BEDROCK_MODEL:eu.amazon.nova-lite-v1:0}
             temperature: 0.7
             max-tokens: 1500
 
 antigaspi:
   llm:
-    # Clé API Bedrock (alternative aux clés AWS) : transmise au SDK AWS par BedrockApiKeyConfigurer
-    bedrock-api-key: ${AWS_BEARER_TOKEN_BEDROCK:${LLM_API_KEY:}}
+    # Clé API Bedrock (LLM_PROVIDER=bedrock, alternative aux clés AWS) : transmise au SDK AWS par BedrockApiKeyConfigurer
+    bedrock-api-key: ${AWS_BEARER_TOKEN_BEDROCK:}
   profile:
     # Chemin relatif au dossier de lancement (backend/ avec Maven) ; le gabarit profil.example.md du même dossier sert de repli
     path: ${PROFILE_PATH:../data/profil.md}

@@ -4,7 +4,7 @@ Application anti-gaspillage : inventaire d'aliments triés par urgence de pérem
 
 ## Stack
 - Backend : Java 21, Spring Boot 4, Spring AI 2, Maven multi-module (`pom.xml` agrégateur à la racine, module `backend/`).
-- LLM : Spring AI `ChatClient`, Amazon Bedrock Converse (Nova Lite) par défaut, isolé derrière l'interface `RecipeGenerator`.
+- LLM : Spring AI `ChatClient`, isolé derrière l'interface `RecipeGenerator`. Par défaut : Nova Lite via le proxy compatible OpenAI de la formation (`LLM_PROVIDER=openai`, `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL=nova-lite`) ; Bedrock en direct possible (`LLM_PROVIDER=bedrock`).
 - Données : inventaire et ustensiles en fichiers JSON statiques (`backend/src/main/resources/data/`), derrière des interfaces `*Repository` qui seront implémentées en base (PostgreSQL).
 - Profil utilisateur (préférences alimentaires) : fichier Markdown `data/profil.md` (gitignoré), gabarit `data/profil.example.md`.
 - Recette : format JSON standardisé (`title`, `servings`, `preparationMinutes`, `utensils`, `ingredients`, `steps`), décrit dans `docs/format-recette.md`.
@@ -19,7 +19,7 @@ fr.antigaspi
 ├── profile/      model/ (UserProfile) · repository/ (Markdown) · service/
 ├── recipe/       model/ (Recipe, RecipeIngredient, RecipeRequest, RecipeContext) · service/ · llm/ (RecipeGenerator, Spring AI, prompts) · cli/ (démo terminal)
 ├── common/       utilitaires partagés (JsonResources)
-└── config/       configuration Spring (Clock, clé API Bedrock)
+└── config/       configuration Spring (Clock, choix du fournisseur LLM, clé API Bedrock)
 ```
 
 - `model/` : records et enums métier, sans dépendance à Spring.
@@ -32,8 +32,8 @@ fr.antigaspi
 - Tous les tests (sans appel LLM) : `mvn -q verify`
 - Une classe de test : `mvn -q test -pl backend -Dtest=Classe#methode`
 - Formatage : `mvn formatter:format` (le hook pre-commit lance `formatter:validate`)
-- Test live LLM (appel réel Bedrock, à lancer à la main) : `mvn test -pl backend -Pllm`
-- Démo en terminal (aliments urgents + recette JSON, appel réel Bedrock) : `mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=demo`
+- Test live LLM (appel réel au LLM, à lancer à la main) : `mvn test -pl backend -Pllm`
+- Démo en terminal (aliments urgents + recette JSON, appel réel au LLM) : `mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=demo`
 
 ## Conventions
 - Code, commentaires, doc et messages de commit en français.
