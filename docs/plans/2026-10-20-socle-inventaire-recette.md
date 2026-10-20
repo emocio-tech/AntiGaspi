@@ -200,23 +200,22 @@ Vérifié : l'image se construit, les tests passent pendant le build, et la dém
 ## Commandes
 
 ```bash
-mvn verify                                        # build + formatter + 50 tests, sans appel LLM
+mvn verify                                        # build + formatter + 49 tests, sans appel LLM
 mvn -q test -pl backend -Dtest=IngredientServiceTest   # une seule classe
 mvn formatter:format -pl backend                  # reformater avant commit
-mvn test -pl backend -Pllm                        # test live : vrai appel au LLM (coûte des tokens)
-mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=demo   # démo : aliments urgents + recette JSON dans le terminal
+mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=demo   # démo : vrai appel au LLM, recette JSON dans le terminal
 ```
 
-Le test live `RecipeGenerationLiveTest` génère une recette avec les aliments les plus urgents et l'affiche dans la console. **Il n'a pas encore été lancé** : il faut des identifiants AWS valides. C'est la première chose à faire pour valider le prompt.
+La vérification avec le vrai LLM se fait avec la démo. Le test live (`RecipeGenerationLiveTest`, jamais exécuté) et le profil Maven `llm` ont été supprimés, ainsi que `ProfileServiceTest`, qui ne vérifiait qu'une délégation.
 
-## Tests (50, tous verts)
+## Tests (49, tous verts)
 
 | Classe | Ce qu'elle vérifie |
 |---|---|
 | `UrgencyTest` | Seuils 🔴/🟠/🟡/🟢 |
 | `IngredientServiceTest` | Tri, jours restants, estimation sans date, départage à date égale, N plus urgents, filtre par ids |
 | `JsonIngredientRepositoryTest` | Conversion des jours relatifs, champs absents, fichier invalide, fichier du projet |
-| `MarkdownProfileRepositoryTest` / `ProfileServiceTest` | Section Préférences, titres sans accents, puces `*`, repli sur le gabarit, profil vide |
+| `MarkdownProfileRepositoryTest` | Section Préférences, titres sans accents, puces `*`, repli sur le gabarit, profil vide |
 | `JsonUtensilRepositoryTest` / `UtensilServiceTest` | Chargement des ustensiles, fichier invalide, tri alphabétique |
 | `RecipePromptBuilderTest` | Contenu et ordre du prompt utilisateur, prompt système sans accolades |
 | `SpringAiRecipeGeneratorTest` | Mapping du JSON standardisé → `Recipe`, prompts envoyés, erreurs du LLM (`ChatModel` simulé) |
@@ -226,7 +225,7 @@ Le test live `RecipeGenerationLiveTest` génère une recette avec les aliments l
 
 ## Prochaines étapes proposées
 
-- **Lancer le test live** et ajuster le prompt système selon les recettes obtenues.
+- **Fiabiliser la recette renvoyée par le LLM** (unités, ustensiles, aliments urgents ignorés) : voir les tests avec la démo.
 - **API REST** : `GET /api/ingredients` et `POST /api/recipes/generate`, de simples façades sur `IngredientService` et `RecipeService`.
 - **PostgreSQL** : une implémentation JPA de `IngredientRepository`, avec Flyway et docker-compose, pour remplacer le JSON.
 - Trancher les questions ouvertes que ce travail rend concrètes :

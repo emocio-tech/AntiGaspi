@@ -16,8 +16,6 @@
 	<properties>
 		<java.version>21</java.version>
 		<spring-ai.version>2.0.1</spring-ai.version>
-		<!-- Tests appelant un vrai LLM : exclus par défaut, activés par le profil llm -->
-		<surefire.excludedGroups>llm</surefire.excludedGroups>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -63,13 +61,6 @@
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
 			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-surefire-plugin</artifactId>
-				<configuration>
-					<excludedGroups>${surefire.excludedGroups}</excludedGroups>
-				</configuration>
-			</plugin>
 			<!-- Lint Java : le hook pre-commit lance formatter:validate, corriger avec formatter:format -->
 			<plugin>
 				<groupId>net.revelc.code.formatter</groupId>
@@ -81,16 +72,5 @@
 			</plugin>
 		</plugins>
 	</build>
-
-	<profiles>
-		<!-- mvn test -pl backend -Pllm : lance uniquement les tests @Tag("llm") (appel réel au LLM) -->
-		<profile>
-			<id>llm</id>
-			<properties>
-				<surefire.excludedGroups></surefire.excludedGroups>
-				<groups>llm</groups>
-			</properties>
-		</profile>
-	</profiles>
 
 </project>

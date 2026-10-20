@@ -32,14 +32,14 @@ fr.antigaspi
 - Tous les tests (sans appel LLM) : `mvn -q verify`
 - Une classe de test : `mvn -q test -pl backend -Dtest=Classe#methode`
 - Formatage : `mvn formatter:format` (le hook pre-commit lance `formatter:validate`)
-- Test live LLM (appel réel au LLM, à lancer à la main) : `mvn test -pl backend -Pllm`
 - Démo en terminal (aliments urgents + recette JSON, appel réel au LLM) : `mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=demo`
 - Sans Java, avec Docker : `docker compose build` (compile + tests), puis `docker compose run --rm backend` (démo). Le `.env` n'est jamais copié dans l'image (`.dockerignore`).
 
 ## Conventions
 - Code, commentaires, doc et messages de commit en français.
 - Classe de test `XxxTest` pour la classe `Xxx`, même package, sous `src/test/java` : les hooks retrouvent les tests par ce nom.
-- Tests déterministes : pas de réseau, heure figée via un `Clock` injecté, LLM mocké. Les tests qui appellent un vrai LLM portent `@Tag("llm")` et sont exclus du build par défaut.
+- Tests déterministes : pas de réseau, heure figée via un `Clock` injecté, LLM simulé (faux `ChatModel`). Aucun test n'appelle le vrai LLM : la vérification en réel se fait avec la démo.
+- Pas de test sans valeur : un test qui ne fait que vérifier une délégation, ou qui n'est jamais exécuté, n'est pas gardé.
 - Branches `feat/<nom>` et `fix/<nom>`, PR vers `main`.
 
 ## Restrictions

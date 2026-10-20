@@ -191,7 +191,6 @@ cp data/profil.example.md data/profil.md   # puis adapter les préférences
 ```bash
 mvn verify                                                        # build + tests (sans appel LLM)
 mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=demo   # démo : recette générée dans le terminal
-mvn test -pl backend -Pllm                                        # test live : vrai appel au LLM
 ```
 
 **Sans Java, avec Docker** (seul Docker Desktop ou Docker Engine + Compose est nécessaire) :
@@ -243,7 +242,7 @@ Toutes les variables sont décrites dans [.env.example](.env.example) : fourniss
 - [ ] Usage local uniquement, ou hébergement ?
 - [ ] Sécurité du serveur MCP (accès local seulement ? jeton ?).
 - [ ] Écritures concurrentes du profil `.md` (interface + MCP en même temps).
-- [x] Stratégie de tests : TDD, tests unitaires avec LLM simulé, test live `@Tag("llm")` lancé à la main.
+- [x] Stratégie de tests : TDD, tests unitaires avec LLM simulé ; vérification en réel avec la démo terminal.
 
 ## Roadmap
 
