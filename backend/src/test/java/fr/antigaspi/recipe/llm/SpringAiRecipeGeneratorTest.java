@@ -44,7 +44,7 @@ class SpringAiRecipeGeneratorTest {
             """;
 
     private static final RecipeContext CONTEXT = new RecipeContext(
-            List.of(view(3, "Courgettes", "2.5", Unit.KG, 2, false)),
+            List.of(view(3, "Courgettes", "2.5", Unit.KG, 2, false)), List.of(),
             List.of(new Utensil(1L, "Four"), new Utensil(2L, "Plat à gratin")), UserProfile.empty(), 2, null);
 
     private final AtomicReference<Prompt> sentPrompt = new AtomicReference<>();

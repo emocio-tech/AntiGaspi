@@ -7,7 +7,6 @@
 -->
 
 ## Préférences
-- N'aime pas les plats épicés
-- Végétarien le midi
+- n'est pas difficile
 
 ## Historique des retours

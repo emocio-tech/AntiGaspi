@@ -8,6 +8,7 @@ import fr.antigaspi.ingredient.model.IngredientView;
 import fr.antigaspi.ingredient.service.IngredientService;
 import fr.antigaspi.profile.service.ProfileService;
 import fr.antigaspi.recipe.llm.RecipeGenerator;
+import fr.antigaspi.recipe.model.GeneratedRecipe;
 import fr.antigaspi.recipe.model.Recipe;
 import fr.antigaspi.recipe.model.RecipeContext;
 import fr.antigaspi.recipe.model.RecipeRequest;
@@ -23,14 +24,17 @@ public class RecipeService {
     private final UtensilService utensilService;
     private final ProfileService profileService;
     private final RecipeGenerator recipeGenerator;
+    private final RecipeChecker recipeChecker;
     private final RecipeProperties properties;
 
     public RecipeService(IngredientService ingredientService, UtensilService utensilService,
-            ProfileService profileService, RecipeGenerator recipeGenerator, RecipeProperties properties) {
+            ProfileService profileService, RecipeGenerator recipeGenerator, RecipeChecker recipeChecker,
+            RecipeProperties properties) {
         this.ingredientService = ingredientService;
         this.utensilService = utensilService;
         this.profileService = profileService;
         this.recipeGenerator = recipeGenerator;
+        this.recipeChecker = recipeChecker;
         this.properties = properties;
     }
 
@@ -43,7 +47,7 @@ public class RecipeService {
      * @throws RecipeGenerationException
      *             si le LLM échoue
      */
-    public Recipe generate(RecipeRequest request) {
+    public GeneratedRecipe generate(RecipeRequest request) {
         RecipeRequest effectiveRequest = request == null ? RecipeRequest.mostUrgent() : request;
         int servings = effectiveRequest.servings() == null ? properties.defaultServings() : effectiveRequest.servings();
         if (servings <= 0) {
@@ -54,18 +58,22 @@ public class RecipeService {
             throw new IllegalArgumentException("Le temps maximal doit être positif : " + maxMinutes);
         }
 
-        List<IngredientView> ingredients = selectIngredients(effectiveRequest.ingredientIds());
-        if (ingredients.isEmpty()) {
+        List<IngredientView> inventory = ingredientService.listByUrgency();
+        List<IngredientView> priority = selectPriority(inventory, effectiveRequest.ingredientIds());
+        if (priority.isEmpty()) {
             throw new IllegalArgumentException("Aucun aliment disponible pour générer une recette");
         }
-        return recipeGenerator.generate(new RecipeContext(ingredients, utensilService.listAll(),
+        List<IngredientView> others = inventory.stream().filter(view -> !priority.contains(view)).toList();
+        Recipe recipe = recipeGenerator.generate(new RecipeContext(priority, others, utensilService.listAll(),
                 profileService.getProfile(), servings, maxMinutes));
+        return recipeChecker.check(recipe, inventory.stream().map(IngredientView::ingredient).toList());
     }
 
-    private List<IngredientView> selectIngredients(List<Long> ids) {
+    /** Les aliments choisis, ou à défaut les plus urgents ; l'inventaire est déjà trié par urgence. */
+    private List<IngredientView> selectPriority(List<IngredientView> inventory, List<Long> ids) {
         if (ids == null || ids.isEmpty()) {
-            return ingredientService.findMostUrgent(properties.maxIngredients());
+            return inventory.stream().limit(properties.maxIngredients()).toList();
         }
-        return ingredientService.findByIds(ids);
+        return inventory.stream().filter(view -> ids.contains(view.ingredient().id())).toList();
     }
 }

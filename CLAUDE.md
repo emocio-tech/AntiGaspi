@@ -17,7 +17,7 @@ fr.antigaspi
 ├── ingredient/   model/ (Ingredient, Category, Unit, Urgency, IngredientView) · repository/ · service/
 ├── utensil/      model/ (Utensil) · repository/ · service/
 ├── profile/      model/ (UserProfile) · repository/ (Markdown) · service/
-├── recipe/       model/ (Recipe, RecipeIngredient, RecipeRequest, RecipeContext) · service/ · llm/ (RecipeGenerator, Spring AI, prompts) · cli/ (démo terminal)
+├── recipe/       model/ (Recipe, RecipeIngredient, RecipeRequest, RecipeContext, GeneratedRecipe, RecipeIssue) · service/ (RecipeService, RecipeChecker : garde-fou post-LLM) · llm/ (RecipeGenerator, Spring AI, prompts) · cli/ (démo terminal)
 ├── common/       utilitaires partagés (JsonResources)
 └── config/       configuration Spring (Clock)
 ```
@@ -32,7 +32,7 @@ fr.antigaspi
 - Tous les tests (sans appel LLM) : `mvn -q verify`
 - Une classe de test : `mvn -q test -pl backend -Dtest=Classe#methode`
 - Formatage : `mvn formatter:format` (le hook pre-commit lance `formatter:validate`)
-- Démo en terminal (aliments urgents + recette JSON, appel réel au LLM) : `mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=demo`
+- Démo en terminal (aliments urgents + 10 recettes JSON + bilan des échecs, appels réels au LLM) : `mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=demo`
 - Sans Java, avec Docker : `docker compose build` (compile + tests), puis `docker compose run --rm backend` (démo). Le `.env` n'est jamais copié dans l'image (`.dockerignore`).
 
 ## Conventions

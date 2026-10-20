@@ -1,6 +1,9 @@
 package fr.antigaspi.recipe.cli;
 
 import java.io.PrintStream;
+import java.util.EnumMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.ApplicationArguments;
@@ -13,7 +16,9 @@ import fr.antigaspi.ingredient.model.Ingredient;
 import fr.antigaspi.ingredient.model.IngredientView;
 import fr.antigaspi.ingredient.service.IngredientService;
 import fr.antigaspi.recipe.llm.RecipeGenerationException;
-import fr.antigaspi.recipe.model.Recipe;
+import fr.antigaspi.recipe.model.GeneratedRecipe;
+import fr.antigaspi.recipe.model.RecipeIssue;
+import fr.antigaspi.recipe.model.RecipeIssueType;
 import fr.antigaspi.recipe.model.RecipeRequest;
 import fr.antigaspi.recipe.service.RecipeProperties;
 import fr.antigaspi.recipe.service.RecipeService;
@@ -21,12 +26,15 @@ import tools.jackson.databind.SerializationFeature;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * Démo en terminal (profil Spring {@code demo}) : affiche les aliments les plus urgents puis la recette générée par le
- * LLM au format JSON standardisé.
+ * Démo en terminal (profil Spring {@code demo}) : affiche les aliments les plus urgents puis {@value #NOMBRE_RECETTES}
+ * recettes générées successivement par le LLM au format JSON standardisé, avec un bilan des échecs.
  */
 @Component
 @Profile("demo")
 public class RecipeDemoRunner implements ApplicationRunner {
+
+    /** Nombre de générations enchaînées, pour repérer les problèmes récurrents du LLM. */
+    private static final int NOMBRE_RECETTES = 10;
 
     private static final JsonMapper JSON = JsonMapper.builder().enable(SerializationFeature.INDENT_OUTPUT).build();
 
@@ -52,21 +60,40 @@ public class RecipeDemoRunner implements ApplicationRunner {
     @Override
     public void run(ApplicationArguments args) {
         out.println();
-        out.println("=== Aliments les plus urgents envoyés au LLM ===");
+        out.println("=== Aliments prioritaires envoyés au LLM (le reste de l'inventaire est fourni en complément) ===");
         ingredientService.findMostUrgent(properties.maxIngredients()).forEach(view -> out.println(line(view)));
 
-        out.println();
-        out.println("=== Génération de la recette… ===");
-        try {
-            Recipe recipe = recipeService.generate(RecipeRequest.mostUrgent());
-            out.println(JSON.writeValueAsString(recipe));
-        } catch (RecipeGenerationException | IllegalArgumentException e) {
-            out.println(e.getMessage());
-            Throwable rootCause = NestedExceptionUtils.getMostSpecificCause(e);
-            if (rootCause != e) {
-                out.println("Cause : " + rootCause);
+        Map<String, Integer> echecs = new LinkedHashMap<>();
+        Map<RecipeIssueType, Integer> anomalies = new EnumMap<>(RecipeIssueType.class);
+        int reussies = 0;
+        for (int i = 1; i <= NOMBRE_RECETTES; i++) {
+            out.println();
+            out.println("=== Recette " + i + "/" + NOMBRE_RECETTES + " ===");
+            try {
+                GeneratedRecipe generated = recipeService.generate(RecipeRequest.mostUrgent());
+                out.println(JSON.writeValueAsString(generated.recipe()));
+                for (RecipeIssue issue : generated.issues()) {
+                    out.println("⚠ " + issue.type().label() + " : " + issue.message());
+                    anomalies.merge(issue.type(), 1, Integer::sum);
+                }
+                reussies++;
+            } catch (RecipeGenerationException | IllegalArgumentException e) {
+                out.println(e.getMessage());
+                Throwable rootCause = NestedExceptionUtils.getMostSpecificCause(e);
+                if (rootCause != e) {
+                    out.println("Cause : " + rootCause);
+                }
+                echecs.merge(e.getMessage(), 1, Integer::sum);
             }
         }
+
+        out.println();
+        out.println("=== Bilan ===");
+        out.println("Bilan : %d réussie(s), %d échec(s) sur %d".formatted(reussies, NOMBRE_RECETTES - reussies,
+                NOMBRE_RECETTES));
+        echecs.forEach((message, nombre) -> out.println("  " + nombre + " × " + message));
+        out.println("Anomalies : " + anomalies.values().stream().mapToInt(Integer::intValue).sum());
+        anomalies.forEach((type, nombre) -> out.println("  " + nombre + " × " + type.label()));
         out.println();
     }
 

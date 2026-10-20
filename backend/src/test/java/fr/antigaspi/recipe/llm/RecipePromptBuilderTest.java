@@ -42,7 +42,7 @@ class RecipePromptBuilderTest {
         RecipeContext context = new RecipeContext(
                 List.of(view(1, "Yaourt", "2", Unit.PIECE, -1, false), view(2, "Poulet", "400", Unit.G, 0, false),
                         view(3, "Courgettes", "2.50", Unit.KG, 2, false), view(4, "Pommes", "6", Unit.PIECE, 3, true)),
-                UTENSILS, PROFILE, 2, null);
+                List.of(), UTENSILS, PROFILE, 2, null);
 
         String prompt = builder.userPrompt(context);
 
@@ -56,8 +56,8 @@ class RecipePromptBuilderTest {
 
     @Test
     void userPrompt_contientUstensilesPreferencesPortionsEtTemps() {
-        RecipeContext context = new RecipeContext(List.of(view(1, "Tomates", "3", Unit.PIECE, 2, false)), UTENSILS,
-                PROFILE, 4, 30);
+        RecipeContext context = new RecipeContext(List.of(view(1, "Tomates", "3", Unit.PIECE, 2, false)), List.of(),
+                UTENSILS, PROFILE, 4, 30);
 
         String prompt = builder.userPrompt(context);
 
@@ -68,11 +68,29 @@ class RecipePromptBuilderTest {
     @Test
     void userPrompt_sansContrainteNiUstensileNiPreference() {
         RecipeContext context = new RecipeContext(List.of(view(1, "Tomates", "3", Unit.PIECE, 2, false)), List.of(),
-                UserProfile.empty(), 2, null);
+                List.of(), UserProfile.empty(), 2, null);
 
         String prompt = builder.userPrompt(context);
 
         assertThat(prompt).contains("Temps maximal : aucune contrainte", "Ustensiles disponibles : non renseignés",
-                "Préférences : aucune");
+                "Préférences : aucune", "Autres aliments disponibles : aucun");
+    }
+
+    @Test
+    void userPrompt_separeLesAlimentsPrioritairesDuResteDeLInventaire() {
+        RecipeContext context = new RecipeContext(List.of(view(2, "Poulet", "400", Unit.G, 0, false)),
+                List.of(view(10, "Riz", "1", Unit.KG, 300, false), view(14, "Oignons", "3", Unit.PIECE, 20, false)),
+                UTENSILS, PROFILE, 2, null);
+
+        String prompt = builder.userPrompt(context);
+
+        int priority = prompt.indexOf("Aliments à consommer en priorité");
+        int others = prompt.indexOf("Autres aliments disponibles");
+        assertThat(priority).isNotNegative();
+        assertThat(others).isGreaterThan(priority);
+        assertThat(prompt.indexOf("- [2] Poulet : 400 g, à consommer aujourd'hui")).isBetween(priority, others);
+        assertThat(prompt).contains("- [10] Riz : 1 kg, reste 300 jour(s)",
+                "- [14] Oignons : 3 pièce, reste 20 jour(s)");
+        assertThat(prompt.indexOf("- [10] Riz")).isGreaterThan(others);
     }
 }

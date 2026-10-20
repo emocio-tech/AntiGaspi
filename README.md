@@ -190,14 +190,14 @@ cp data/profil.example.md data/profil.md   # puis adapter les préférences
 
 ```bash
 mvn verify                                                        # build + tests (sans appel LLM)
-mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=demo   # démo : recette générée dans le terminal
+mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=demo   # démo : 10 recettes générées dans le terminal + bilan des échecs
 ```
 
 **Sans Java, avec Docker** (seul Docker Desktop ou Docker Engine + Compose est nécessaire) :
 
 ```bash
 docker compose build              # compile et lance les tests dans l'image (première fois : quelques minutes)
-docker compose run --rm backend   # démo : aliments urgents + recette générée, puis arrêt
+docker compose run --rm backend   # démo : aliments urgents + 10 recettes générées + bilan, puis arrêt
 ```
 
 - Le `.env` est passé au conteneur au lancement (`env_file`), il n'est **jamais** copié dans l'image (`.dockerignore`).

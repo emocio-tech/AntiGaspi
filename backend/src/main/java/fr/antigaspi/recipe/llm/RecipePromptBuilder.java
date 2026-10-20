@@ -45,8 +45,11 @@ public class RecipePromptBuilder {
                 .append(context.maxMinutes() == null ? "aucune contrainte" : context.maxMinutes() + " minutes")
                 .append("\n\n");
 
-        prompt.append("Aliments disponibles, du plus urgent au moins urgent (identifiant entre crochets) :\n");
-        context.ingredients().forEach(view -> prompt.append(ingredientLine(view)).append('\n'));
+        prompt.append(
+                "Aliments à consommer en priorité, du plus urgent au moins urgent (identifiant entre crochets) :\n");
+        context.priorityIngredients().forEach(view -> prompt.append("- ").append(ingredientLine(view)).append('\n'));
+        appendList(prompt, "Autres aliments disponibles",
+                context.otherIngredients().stream().map(RecipePromptBuilder::ingredientLine).toList(), "aucun");
 
         appendList(prompt, "Ustensiles disponibles", context.utensils().stream().map(Utensil::name).toList(),
                 "non renseignés");
@@ -54,10 +57,10 @@ public class RecipePromptBuilder {
         return prompt.toString();
     }
 
-    /** Exemple : {@code - [3] Courgettes : 2.5 kg, reste 2 jour(s) (date estimée)}. */
+    /** Exemple : {@code [3] Courgettes : 2.5 kg, reste 2 jour(s) (date estimée)}. */
     private static String ingredientLine(IngredientView view) {
         Ingredient ingredient = view.ingredient();
-        String line = "- [%d] %s : %s %s, %s".formatted(ingredient.id(), ingredient.name(),
+        String line = "[%d] %s : %s %s, %s".formatted(ingredient.id(), ingredient.name(),
                 ingredient.quantity().stripTrailingZeros().toPlainString(), ingredient.unit().symbol(),
                 expiryText(view.daysLeft()));
         return view.estimated() ? line + " (date estimée)" : line;

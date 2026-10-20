@@ -7,7 +7,8 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * Paramètres métier de la génération de recettes ({@code antigaspi.recipe.*}).
  *
  * @param maxIngredients
- *            nombre d'aliments les plus urgents envoyés au LLM quand aucun n'est choisi
+ *            nombre d'aliments les plus urgents présentés au LLM comme prioritaires quand aucun n'est choisi ; le reste
+ *            de l'inventaire lui est aussi fourni, comme complément facultatif
  * @param defaultServings
  *            nombre de portions par défaut
  */
