@@ -28,8 +28,16 @@ Lance l'agent `impact-analyst` avec le besoin cadré. En même temps, lance `tes
 2. Si des questions ouvertes subsistent, pose-les à l'utilisateur.
 3. **VALIDATION HUMAINE n°1** : présente les deux plans, les risques principaux et les questions. Ne continue qu'avec un accord explicite. Si l'utilisateur demande des changements, ajuste (et relance un agent si nécessaire).
 
-## Étape 3 : implémentation et tests
-Lance l'agent `implementer` avec les plans validés : code et tests prévus, puis lancement des tests indiqués.
+## Étape 3 : TDD, tests d'abord puis implémentation
+Le projet suit le TDD (voir CLAUDE.md). Aucun code de production n'est écrit avant les tests.
+
+### 3a. Tests d'abord (Red)
+Écris les tests du plan de test validé avec le skill `generate-tests`. Seuls des stubs minimaux, sans logique, sont autorisés pour que ça compile.
+- Lance les tests ciblés et vérifie qu'ils **échouent pour la bonne raison** : assertion ou `UnsupportedOperationException`, pas une erreur de compilation ni de configuration.
+- Un test qui passe déjà est suspect : il ne teste rien de nouveau. Corrige-le ou retire-le avec l'accord de l'utilisateur.
+
+### 3b. Implémentation (Green, puis Refactor)
+Lance l'agent `implementer` avec les plans validés et la liste des tests en échec. Il écrit le code qui les fait passer, **sans modifier les tests**, puis lance les tests indiqués.
 - Si l'implementer remonte un blocage ou un écart, c'est à toi de décider : tranche si c'est mineur, sinon consulte l'utilisateur, puis relance l'implementer avec le plan mis à jour.
 - Vérifie son compte rendu : statut, tests passés, écarts. Ne considère pas l'étape finie sur la seule affirmation de l'agent : relance toi-même la commande de test ciblée si le résultat est douteux.
 

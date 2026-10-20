@@ -1,6 +1,6 @@
 ---
 name: generate-tests
-description: Génère les tests d'une feature ou d'un code modifié à partir d'un plan de test validé (ou du diff), en suivant les conventions de test du projet, puis les exécute. À utiliser après l'implémentation ou, en TDD, avant elle.
+description: Génère les tests d'une feature ou d'un code modifié à partir d'un plan de test validé (ou du diff), en suivant les conventions de test du projet, puis les exécute. À utiliser avant l'implémentation (phase Red du TDD, cas par défaut du projet), ou après pour compléter la couverture.
 argument-hint: [chemin, plan de test ou description optionnelle, par défaut : fichiers modifiés du diff]
 allowed-tools: Bash(git status:*), Bash(git diff:*), Bash(mvn:*), Bash(./refine:*), Read, Grep, Glob, Edit, Write
 ---
@@ -16,11 +16,11 @@ Génère les tests du périmètre `$ARGUMENTS` (par défaut : les fichiers modif
 3. **Proposition** : liste les tests à écrire sous forme de tableau `Fichier de test | Cas | Entrée | Résultat attendu`, en distinguant les fichiers à créer de ceux à compléter.
 4. **Validation** : demande à l'utilisateur la confirmation avant toute modification.
 5. **Écriture** : après accord, crée ou complète les tests avec Edit ou Write.
-6. **Exécution** : lance uniquement les tests concernés avec la commande ciblée du projet (par exemple `mvn test -pl main -Dtest=Classe#methode` pour OpenRefine) et relève le résultat.
+6. **Exécution** : lance uniquement les tests concernés avec la commande ciblée du projet (par exemple `mvn -q test -pl backend -Dtest=Classe#methode`) et relève le résultat. En phase Red (avant le code), les tests doivent **échouer** pour la bonne raison (assertion ou `UnsupportedOperationException` d'un stub, pas une erreur de compilation ni de configuration) : vérifie-le et signale tout test qui passe déjà.
 7. **Résumé** : fichiers créés ou modifiés, nombre de tests ajoutés, résultat de l'exécution, sans créer de commit.
 
 ## Règles
-- Ne modifie jamais le code de production, seulement les tests. Si un test révèle un défaut du code, signale-le à l'utilisateur au lieu de corriger.
+- Ne modifie jamais le code de production, seulement les tests. Seule exception, en phase Red : créer des stubs minimaux (signatures, `throw new UnsupportedOperationException()`, sans logique) pour que les tests compilent. Si un test révèle un défaut du code, signale-le à l'utilisateur au lieu de corriger.
 - Un test échoue : ne l'affaiblis pas et ne le désactive pas. Explique la cause (test faux ou code faux) et demande la décision.
 - Chaque test vérifie un comportement précis avec des assertions significatives ; pas de test vide ni redondant.
 - Préfère les tests déterministes et isolés (pas de dépendance au réseau, à l'heure ou à l'ordre d'exécution).
