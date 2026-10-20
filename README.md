@@ -4,7 +4,7 @@ Application web anti-gaspillage alimentaire : on suit les ingrédients de son fr
 
 **Contexte** : projet de formation réalisé à trois. Objectif : une application **minimaliste** qui intègre un **LLM** et un **serveur MCP**.
 
-> Statut : **cadrage** — décisions principales prises (voir [Décisions](#décisions-prises)), code pas encore initialisé.
+> Statut : **socle backend** : inventaire statique, profil Markdown et génération de recette par LLM au niveau service (voir [docs/plans/2026-10-20-socle-inventaire-recette.md](docs/plans/2026-10-20-socle-inventaire-recette.md)).
 
 ## Sommaire
 - [Fonctionnalités](#fonctionnalités)
@@ -109,7 +109,7 @@ Versions **proposées**, à confirmer à l'initialisation du code.
 
 | Couche | Choix |
 |---|---|
-| Backend | Java 21, Spring Boot 3, Maven |
+| Backend | Java 21, Spring Boot 4, Spring AI 2, Maven |
 | Frontend | Angular (web app responsive) |
 | Base de données | PostgreSQL (docker-compose en dev), H2 en mémoire pour les tests, migrations Flyway |
 | LLM | Spring AI `ChatClient` multi-fournisseurs — Bedrock (Nova Lite) par défaut, Anthropic / OpenAI en option |
@@ -167,12 +167,14 @@ AntiGaspi/
 
 ## Démarrage et configuration
 
-> À compléter une fois le code initialisé.
 
 ```bash
 git clone git@github.com:emocio-tech/AntiGaspi.git
 cd AntiGaspi
 cp .env.example .env   # puis renseigner la clé API du LLM et le mot de passe PostgreSQL
+cp data/profil.example.md data/profil.md   # puis adapter préférences et équipement
+mvn verify             # build + tests (sans appel LLM)
+mvn test -pl backend -Pllm   # test live : vrai appel au LLM configuré
 ```
 
 Toutes les variables sont décrites dans [.env.example](.env.example) : fournisseur et modèle LLM, clé API, base de données, chemin du profil.
@@ -197,6 +199,9 @@ Toutes les variables sont décrites dans [.env.example](.env.example) : fourniss
 | Consommation | écran de confirmation avec quantités modifiables | 2026-10-19 |
 | Équipement | section du profil `.md`, modifiable par l'utilisateur | 2026-10-19 |
 | Secrets | clé API dans `.env`, lecture interdite à Claude Code | 2026-10-19 |
+| Méthode | TDD obligatoire : tests écrits avant le code (voir [CLAUDE.md](CLAUDE.md)) | 2026-10-20 |
+| Versions | Spring Boot 4.1 / Spring AI 2.0 (Spring Boot 3 n'est plus proposé par Spring Initializr) | 2026-10-20 |
+| Données de test | inventaire statique JSON en jours relatifs, en attendant PostgreSQL | 2026-10-20 |
 
 ## Questions ouvertes
 
@@ -209,7 +214,7 @@ Toutes les variables sont décrites dans [.env.example](.env.example) : fourniss
 - [ ] Usage local uniquement, ou hébergement ?
 - [ ] Sécurité du serveur MCP (accès local seulement ? jeton ?).
 - [ ] Écritures concurrentes du profil `.md` (interface + MCP en même temps).
-- [ ] Stratégie de tests (unitaires, intégration avec H2, mock du LLM).
+- [x] Stratégie de tests : TDD, tests unitaires avec LLM simulé, test live `@Tag("llm")` lancé à la main.
 
 ## Roadmap
 
