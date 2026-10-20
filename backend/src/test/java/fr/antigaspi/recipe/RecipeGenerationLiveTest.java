@@ -9,11 +9,13 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-
-import fr.antigaspi.ingredient.Ingredient;
-import fr.antigaspi.ingredient.IngredientRepository;
-import fr.antigaspi.utensil.Utensil;
-import fr.antigaspi.utensil.UtensilRepository;
+import fr.antigaspi.ingredient.model.Ingredient;
+import fr.antigaspi.ingredient.repository.IngredientRepository;
+import fr.antigaspi.recipe.model.Recipe;
+import fr.antigaspi.recipe.model.RecipeRequest;
+import fr.antigaspi.recipe.service.RecipeService;
+import fr.antigaspi.utensil.model.Utensil;
+import fr.antigaspi.utensil.repository.UtensilRepository;
 
 /**
  * Appel réel au LLM configuré (Bedrock par défaut), pour valider le prompt de bout en bout. Exclu du build par défaut
