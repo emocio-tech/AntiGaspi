@@ -171,6 +171,24 @@ Premier test réel avec la démo terminal : une recette au format standardisé e
 - ustensiles utilisés dans les étapes mais absents de `utensils`, ou listés sans être utilisés ;
 - aliments très urgents ignorés (le poulet qui expire aujourd'hui).
 
+## Mise à jour : Docker (lancer le backend sans Java)
+
+Pour les membres de l'équipe qui n'ont pas Java, seul Docker est nécessaire :
+
+```bash
+cp .env.example .env              # renseigner LLM_BASE_URL et LLM_API_KEY
+docker compose build              # compile et lance les 50 tests dans l'image
+docker compose run --rm backend   # démo : aliments urgents + recette générée, puis arrêt
+```
+
+| Fichier | Rôle |
+|---|---|
+| [Dockerfile](../../Dockerfile) | Étape 1 : Maven + JDK 21 compile et lance les tests (`SKIP_TESTS=true` pour les sauter). Étape 2 : image légère avec seulement le JRE 21, exécutée par un utilisateur non root |
+| [docker-compose.yml](../../docker-compose.yml) | Service `backend` : variables lues dans `.env`, `data/` monté en lecture seule, profil `demo` par défaut (il n'y a pas encore d'API REST), port 8080 prêt pour la suite |
+| [.dockerignore](../../.dockerignore) | Exclut `.env`, `data/profil.md`, `.git`, `target/`… : **aucun secret dans l'image** |
+
+Vérifié : l'image se construit, les tests passent pendant le build, et la démo génère une recette dans le conteneur. Quand l'API REST arrivera, on lancera le serveur avec `SPRING_PROFILES_ACTIVE=default docker compose up`. PostgreSQL sera ajouté comme second service du même `docker-compose.yml`.
+
 ## À faire de votre côté
 
 1. **Mettre à jour votre `.env`** à partir du nouveau [.env.example](../../.env.example) :

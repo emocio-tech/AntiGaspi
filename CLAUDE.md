@@ -34,6 +34,7 @@ fr.antigaspi
 - Formatage : `mvn formatter:format` (le hook pre-commit lance `formatter:validate`)
 - Test live LLM (appel réel au LLM, à lancer à la main) : `mvn test -pl backend -Pllm`
 - Démo en terminal (aliments urgents + recette JSON, appel réel au LLM) : `mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=demo`
+- Sans Java, avec Docker : `docker compose build` (compile + tests), puis `docker compose run --rm backend` (démo). Le `.env` n'est jamais copié dans l'image (`.dockerignore`).
 
 ## Conventions
 - Code, commentaires, doc et messages de commit en français.

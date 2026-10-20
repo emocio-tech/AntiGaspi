@@ -170,7 +170,8 @@ AntiGaspi/
 ├── data/                # profil.md (gitignoré) + gabarit profil.example.md
 ├── docs/
 │   └── maquettes/       # maquettes / wireframes
-├── docker-compose.yml   # PostgreSQL (à créer)
+├── Dockerfile           # image du backend (build Maven + JRE 21), aucun Java requis sur l'hôte
+├── docker-compose.yml   # service backend (PostgreSQL à ajouter)
 ├── .env.example         # gabarit des variables d'environnement
 └── .claude/             # config Claude Code partagée (agents, skills, hooks, permissions)
 ```
@@ -181,11 +182,28 @@ AntiGaspi/
 ```bash
 git clone git@github.com:emocio-tech/AntiGaspi.git
 cd AntiGaspi
-cp .env.example .env   # puis renseigner la clé API du LLM et le mot de passe PostgreSQL
+cp .env.example .env   # puis renseigner LLM_BASE_URL, LLM_API_KEY (une seule ligne chacune)
 cp data/profil.example.md data/profil.md   # puis adapter les préférences
-mvn verify             # build + tests (sans appel LLM)
-mvn test -pl backend -Pllm   # test live : vrai appel au LLM configuré
 ```
+
+**Avec Java 21 et Maven** :
+
+```bash
+mvn verify                                                        # build + tests (sans appel LLM)
+mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=demo   # démo : recette générée dans le terminal
+mvn test -pl backend -Pllm                                        # test live : vrai appel au LLM
+```
+
+**Sans Java, avec Docker** (seul Docker Desktop ou Docker Engine + Compose est nécessaire) :
+
+```bash
+docker compose build              # compile et lance les tests dans l'image (première fois : quelques minutes)
+docker compose run --rm backend   # démo : aliments urgents + recette générée, puis arrêt
+```
+
+- Le `.env` est passé au conteneur au lancement (`env_file`), il n'est **jamais** copié dans l'image (`.dockerignore`).
+- Le dossier `data/` est monté en lecture seule : `data/profil.md` est pris en compte sans reconstruire l'image.
+- Après une modification du code, relancer `docker compose build`. Pour aller plus vite : `docker compose build --build-arg SKIP_TESTS=true`.
 
 Toutes les variables sont décrites dans [.env.example](.env.example) : fournisseur et modèle LLM, clé API, base de données, chemin du profil.
 
