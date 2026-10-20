@@ -149,6 +149,11 @@ fr.antigaspi
 - Le profil passe maintenant par un repository, comme l'inventaire et les ustensiles : `ProfileRepository` / `MarkdownProfileRepository`.
 - Les règles sont décrites dans [CLAUDE.md](../../CLAUDE.md) (section « Architecture du backend »). Les contrôleurs REST iront dans `<fonctionnalité>/api/`.
 
+## Mise à jour : démo en terminal et clé API Bedrock
+
+- **Démo** : `mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=demo`. L'application démarre sans serveur web et affiche les aliments les plus urgents, puis la recette générée au format JSON standardisé. Elle s'arrête ensuite. En cas d'échec du LLM, le message d'erreur AWS est affiché. Le code est dans `recipe/cli/RecipeDemoRunner` et la configuration dans `application-demo.yml`.
+- **Clé API Bedrock** : en plus des clés IAM, on peut utiliser une clé API Bedrock (console Bedrock > API keys, préfixe `ABSK`). On la met dans `AWS_BEARER_TOKEN_BEDROCK`, ou à défaut dans `LLM_API_KEY`, dans `.env`. `config/BedrockApiKeyConfigurer` la transmet au SDK AWS, qui ne lit pas le `.env` lui-même.
+
 ## À faire de votre côté
 
 1. **Mettre à jour votre `.env`** à partir du nouveau [.env.example](../../.env.example) :
@@ -165,6 +170,7 @@ mvn verify                                        # build + formatter + 48 tests
 mvn -q test -pl backend -Dtest=IngredientServiceTest   # une seule classe
 mvn formatter:format -pl backend                  # reformater avant commit
 mvn test -pl backend -Pllm                        # test live : vrai appel Bedrock (coûte des tokens)
+mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=demo   # démo : aliments urgents + recette JSON dans le terminal
 ```
 
 Le test live `RecipeGenerationLiveTest` génère une recette avec les aliments les plus urgents et l'affiche dans la console. **Il n'a pas encore été lancé** : il faut des identifiants AWS valides. C'est la première chose à faire pour valider le prompt.

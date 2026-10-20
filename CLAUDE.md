@@ -17,9 +17,9 @@ fr.antigaspi
 ├── ingredient/   model/ (Ingredient, Category, Unit, Urgency, IngredientView) · repository/ · service/
 ├── utensil/      model/ (Utensil) · repository/ · service/
 ├── profile/      model/ (UserProfile) · repository/ (Markdown) · service/
-├── recipe/       model/ (Recipe, RecipeIngredient, RecipeRequest, RecipeContext) · service/ · llm/ (RecipeGenerator, Spring AI, prompts)
+├── recipe/       model/ (Recipe, RecipeIngredient, RecipeRequest, RecipeContext) · service/ · llm/ (RecipeGenerator, Spring AI, prompts) · cli/ (démo terminal)
 ├── common/       utilitaires partagés (JsonResources)
-└── config/       configuration Spring (Clock)
+└── config/       configuration Spring (Clock, clé API Bedrock)
 ```
 
 - `model/` : records et enums métier, sans dépendance à Spring.
@@ -33,6 +33,7 @@ fr.antigaspi
 - Une classe de test : `mvn -q test -pl backend -Dtest=Classe#methode`
 - Formatage : `mvn formatter:format` (le hook pre-commit lance `formatter:validate`)
 - Test live LLM (appel réel Bedrock, à lancer à la main) : `mvn test -pl backend -Pllm`
+- Démo en terminal (aliments urgents + recette JSON, appel réel Bedrock) : `mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=demo`
 
 ## Conventions
 - Code, commentaires, doc et messages de commit en français.

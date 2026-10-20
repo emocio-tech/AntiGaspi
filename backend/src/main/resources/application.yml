@@ -23,6 +23,9 @@ spring:
             max-tokens: 1500
 
 antigaspi:
+  llm:
+    # Clé API Bedrock (alternative aux clés AWS) : transmise au SDK AWS par BedrockApiKeyConfigurer
+    bedrock-api-key: ${AWS_BEARER_TOKEN_BEDROCK:${LLM_API_KEY:}}
   profile:
     # Chemin relatif au dossier de lancement (backend/ avec Maven) ; le gabarit profil.example.md du même dossier sert de repli
     path: ${PROFILE_PATH:../data/profil.md}
