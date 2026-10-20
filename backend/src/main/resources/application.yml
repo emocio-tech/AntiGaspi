@@ -1,0 +1,8 @@
+spring:
+  application:
+    name: antigaspi-backend
+  # Variables d'environnement lues depuis le .env de la racine (lancement depuis la racine ou depuis backend/)
+  config:
+    import:
+      - optional:file:.env[.properties]
+      - optional:file:../.env[.properties]

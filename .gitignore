@@ -47,3 +47,7 @@ coverage/
 
 # Profil utilisateur (données perso, gabarit versionné à part)
 data/profil.md
+
+# Maven
+target/
+.mvn/wrapper/maven-wrapper.jar
