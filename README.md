@@ -48,15 +48,17 @@ Un ingrédient est stocké en base avec :
 
 ### 2. Génération de recettes par LLM
 - Un appel API au LLM génère des recettes à partir de la liste, **en priorisant les ingrédients bientôt périmés**.
-- Le prompt contient : les ingrédients triés par urgence + le **profil utilisateur** (préférences et équipement disponible).
+- Le prompt contient : les ingrédients triés par urgence, les **ustensiles disponibles** (stockés en base) et les **préférences** du profil utilisateur.
 - **Modèle** : **Amazon Nova Lite** (via Bedrock) pour commencer, mais le fournisseur est **interchangeable** (Claude, GPT…) : on change `LLM_PROVIDER` / `LLM_MODEL` dans `.env`, sans toucher au code métier.
-- Sortie **structurée (JSON)** pour l'affichage : titre, portions, temps, ingrédients utilisés (avec quantités), ingrédients manquants, étapes, équipement requis.
+- Sortie au **format JSON standardisé**, stockable en base plus tard : titre, nombre de personnes, temps de préparation estimé, ustensiles utilisés, ingrédients (nom, poids ou quantité, unité, lien optionnel vers l'aliment du stock) et étapes. Voir [docs/format-recette.md](docs/format-recette.md).
 
 ### 3. « J'ai cuisiné cette recette » → mise à jour de la liste
 Après avoir réalisé une recette, un **écran de confirmation** liste les ingrédients utilisés avec les quantités **préremplies et modifiables** (si la recette a été adaptée). À la validation, les quantités sont décrémentées et les ingrédients épuisés sont supprimés.
 
 ### 4. Profil utilisateur (`.md`) et feedback
-Chaque utilisateur a un fichier Markdown de profil, lu par le LLM à chaque génération. Il est **modifiable par l'utilisateur** (interface et MCP), par exemple en cas de déménagement ou d'appareil cassé.
+Chaque utilisateur a un fichier Markdown de profil (préférences alimentaires, historique des retours), lu par le LLM à chaque génération. Il est **modifiable par l'utilisateur** (interface et MCP).
+
+> Les **ustensiles disponibles** ne sont **pas** dans le profil : ils sont stockés en base (table `utensil`, fichier JSON statique pour l'instant), modifiables par l'utilisateur, par exemple en cas de déménagement ou d'appareil cassé.
 
 ```markdown
 # Profil
@@ -64,10 +66,6 @@ Chaque utilisateur a un fichier Markdown de profil, lu par le LLM à chaque gén
 ## Préférences
 - N'aime pas les plats épicés
 - Végétarien le midi
-
-## Équipement
-- Four, plaques à induction, micro-ondes
-- Pas de robot ni de friteuse
 
 ## Historique des retours
 - 2026-10-19 · Curry de légumes · 👎 · « trop épicé »
@@ -91,12 +89,13 @@ Tools proposés :
 | `get_expiring_ingredients` | ingrédients à consommer sous N jours |
 | `add_ingredient` / `update_ingredient` / `remove_ingredient` | gérer la liste |
 | `consume_ingredients` | retirer / décrémenter les ingrédients utilisés par une recette |
-| `get_profile` | lire le profil (préférences, équipement) |
-| `update_preferences` / `update_equipment` | modifier le profil |
+| `get_profile` | lire le profil (préférences) |
+| `update_preferences` | modifier les préférences du profil |
+| `list_utensils` / `add_utensil` / `remove_utensil` | gérer les ustensiles disponibles |
 | `add_feedback` | enregistrer un retour sur une recette |
 | `generate_recipe` | générer une recette via le LLM de l'application |
 
-Deux usages possibles : Claude appelle `generate_recipe` (génération par le LLM de l'appli), **ou** génère lui-même la recette à partir de `list_ingredients` + `get_profile`, puis met la liste à jour avec `consume_ingredients`.
+Deux usages possibles : Claude appelle `generate_recipe` (génération par le LLM de l'appli), **ou** génère lui-même la recette à partir de `list_ingredients` + `list_utensils` + `get_profile`, puis met la liste à jour avec `consume_ingredients`.
 
 ### 6. Interface utilisateur
 - **Web app Angular**, minimaliste et **responsive (mobile-first)** : elle doit fonctionner correctement sur ordinateur et sur téléphone.
@@ -122,10 +121,10 @@ Versions **proposées**, à confirmer à l'initialisation du code.
 flowchart LR
     UI["Angular<br/>(web app responsive)"] -->|REST| API["API REST"]
     MCPC["Client MCP<br/>(Claude…)"] -->|MCP| MCPS["Serveur MCP"]
-    API --> SVC["Services métier<br/>inventaire · recettes · profil"]
+    API --> SVC["Services métier<br/>inventaire · ustensiles · recettes · profil"]
     MCPS --> SVC
-    SVC --> DB[("PostgreSQL<br/>ingrédients")]
-    SVC --> MD["data/profil.md<br/>préférences · équipement · retours"]
+    SVC --> DB[("PostgreSQL<br/>ingrédients · ustensiles")]
+    SVC --> MD["data/profil.md<br/>préférences · retours"]
     SVC --> LLM["LLM via Spring AI<br/>Nova Lite (Bedrock) par défaut"]
 ```
 
@@ -144,6 +143,17 @@ Table `ingredient` (proposition) :
 | `unit` | `varchar` (enum) | non nul (`g`, `kg`, `ml`, `l`, `pièce`…) |
 | `expiry_date` | `date` | **nullable** |
 | `added_at` | `timestamp` | non nul, par défaut maintenant |
+
+Table `utensil` (ustensiles disponibles) :
+
+| Colonne | Type | Contrainte |
+|---|---|---|
+| `id` | `bigint` | PK |
+| `name` | `varchar` | non nul, unique |
+
+Les recettes générées pourront être stockées à partir de leur [format JSON standardisé](docs/format-recette.md), qui propose aussi un schéma de tables.
+
+> Pour l'instant, ingrédients et ustensiles sont des fichiers JSON statiques (`backend/src/main/resources/data/`), derrière les interfaces `IngredientRepository` et `UtensilRepository`.
 
 ### Catégories proposées
 Fruits, légumes, produits laitiers, viandes & poissons, œufs, féculents, épicerie sèche, conserves, surgelés, boissons, condiments.
@@ -172,7 +182,7 @@ AntiGaspi/
 git clone git@github.com:emocio-tech/AntiGaspi.git
 cd AntiGaspi
 cp .env.example .env   # puis renseigner la clé API du LLM et le mot de passe PostgreSQL
-cp data/profil.example.md data/profil.md   # puis adapter préférences et équipement
+cp data/profil.example.md data/profil.md   # puis adapter les préférences
 mvn verify             # build + tests (sans appel LLM)
 mvn test -pl backend -Pllm   # test live : vrai appel au LLM configuré
 ```
@@ -190,14 +200,15 @@ Toutes les variables sont décrites dans [.env.example](.env.example) : fourniss
 | Sujet | Décision | Date |
 |---|---|---|
 | Stack | Java (Spring Boot, Maven) + Angular, web app responsive | 2026-10-19 |
-| Base de données | PostgreSQL, uniquement pour les ingrédients | 2026-10-19 |
+| Base de données | PostgreSQL pour les ingrédients et les ustensiles (les recettes plus tard) | 2026-10-20 |
 | Feedback | pas de table : enrichit le profil `.md`, consolidé par le LLM | 2026-10-19 |
 | Utilisateurs | mono-utilisateur pour le MVP, pas d'authentification | 2026-10-19 |
 | LLM | Nova Lite (Bedrock) au départ, fournisseur interchangeable par configuration | 2026-10-19 |
 | Ingrédient | nom, catégorie, quantité + unité, péremption optionnelle (estimée sinon), date d'ajout | 2026-10-19 |
 | Urgence | indicateurs colorés plutôt que dates brutes | 2026-10-19 |
 | Consommation | écran de confirmation avec quantités modifiables | 2026-10-19 |
-| Équipement | section du profil `.md`, modifiable par l'utilisateur | 2026-10-19 |
+| Ustensiles | stockés en base (JSON statique en attendant), plus dans le profil `.md` | 2026-10-20 |
+| Format de recette | JSON standardisé à clés anglaises, quantité = nombre + unité, `ingredientId` optionnel ([docs/format-recette.md](docs/format-recette.md)) | 2026-10-20 |
 | Secrets | clé API dans `.env`, lecture interdite à Claude Code | 2026-10-19 |
 | Méthode | TDD obligatoire : tests écrits avant le code (voir [CLAUDE.md](CLAUDE.md)) | 2026-10-20 |
 | Versions | Spring Boot 4.1 / Spring AI 2.0 (Spring Boot 3 n'est plus proposé par Spring Initializr) | 2026-10-20 |
@@ -221,7 +232,7 @@ Toutes les variables sont décrites dans [.env.example](.env.example) : fourniss
 1. **Socle** — POM parent, backend Spring Boot, PostgreSQL (docker-compose), table `ingredient`, données d'amorçage
 2. **Inventaire** — API REST + écran Inventaire (tri par urgence, couleurs, estimation de péremption)
 3. **Recettes** — appel LLM (Nova Lite) via Spring AI, affichage structuré
-4. **Profil & feedback** — `profil.md`, écran Profil (préférences, équipement), boucle de feedback
+4. **Profil & feedback** — `profil.md`, écran Profil (préférences, ustensiles), boucle de feedback
 5. **Consommation** — écran « J'ai cuisiné cette recette », mise à jour de la liste
 6. **MCP** — serveur MCP et ses tools
 7. **UI** — finitions responsive d'après les maquettes
