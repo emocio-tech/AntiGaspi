@@ -1,6 +1,6 @@
 # Format standardisé d'une recette (JSON)
 
-Le LLM renvoie toujours une recette dans ce format. Il correspond au record Java [`Recipe`](../backend/src/main/java/fr/antigaspi/recipe/Recipe.java). Il est pensé pour être **stocké en base** plus tard, sans transformation.
+Le LLM renvoie toujours une recette dans ce format. Il correspond au record Java [`Recipe`](../backend/src/main/java/fr/antigaspi/recipe/model/Recipe.java). Il est pensé pour être **stocké en base** plus tard, sans transformation.
 
 ## Champs
 
@@ -50,7 +50,7 @@ Chaque élément de `ingredients` :
 
 | Élément | Fichier |
 |---|---|
-| Structure Java | [Recipe.java](../backend/src/main/java/fr/antigaspi/recipe/Recipe.java), [RecipeIngredient.java](../backend/src/main/java/fr/antigaspi/recipe/RecipeIngredient.java) |
+| Structure Java | [Recipe.java](../backend/src/main/java/fr/antigaspi/recipe/model/Recipe.java), [RecipeIngredient.java](../backend/src/main/java/fr/antigaspi/recipe/model/RecipeIngredient.java) |
 | Consignes au LLM | [recipe-system.md](../backend/src/main/resources/prompts/recipe-system.md) (section « Format de la recette ») |
 | Conversion du JSON | Spring AI, sortie structurée : le schéma JSON est déduit du record et envoyé au LLM |
 | Test de référence | `SpringAiRecipeGeneratorTest.convertitLaReponseJsonStandardiseeEnRecette` |

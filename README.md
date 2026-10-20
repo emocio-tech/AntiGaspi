@@ -164,10 +164,10 @@ Chaque catégorie a une **durée de conservation par défaut** (fourchette min/m
 
 ```
 AntiGaspi/
-├── pom.xml              # POM parent (à créer) — nécessaire pour les hooks Maven
-├── backend/             # Spring Boot : API REST, services métier, serveur MCP (à créer)
+├── pom.xml              # POM agrégateur — nécessaire pour les hooks Maven
+├── backend/             # Spring Boot : services métier par fonctionnalité (ingredient, utensil, profile, recipe), puis API REST et serveur MCP — voir CLAUDE.md
 ├── frontend/            # Angular (à créer)
-├── data/                # profil.md (gitignoré) + gabarit (à créer)
+├── data/                # profil.md (gitignoré) + gabarit profil.example.md
 ├── docs/
 │   └── maquettes/       # maquettes / wireframes
 ├── docker-compose.yml   # PostgreSQL (à créer)

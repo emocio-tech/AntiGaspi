@@ -9,6 +9,25 @@ Application anti-gaspillage : inventaire d'aliments triés par urgence de pérem
 - Profil utilisateur (préférences alimentaires) : fichier Markdown `data/profil.md` (gitignoré), gabarit `data/profil.example.md`.
 - Recette : format JSON standardisé (`title`, `servings`, `preparationMinutes`, `utensils`, `ingredients`, `steps`), décrit dans `docs/format-recette.md`.
 
+## Architecture du backend
+Découpage **par fonctionnalité**, puis par couche à l'intérieur de chaque fonctionnalité :
+
+```
+fr.antigaspi
+├── ingredient/   model/ (Ingredient, Category, Unit, Urgency, IngredientView) · repository/ · service/
+├── utensil/      model/ (Utensil) · repository/ · service/
+├── profile/      model/ (UserProfile) · repository/ (Markdown) · service/
+├── recipe/       model/ (Recipe, RecipeIngredient, RecipeRequest, RecipeContext) · service/ · llm/ (RecipeGenerator, Spring AI, prompts)
+├── common/       utilitaires partagés (JsonResources)
+└── config/       configuration Spring (Clock)
+```
+
+- `model/` : records et enums métier, sans dépendance à Spring.
+- `repository/` : interface `XxxRepository` + implémentation actuelle (`JsonXxxRepository`, `MarkdownProfileRepository`) ; l'implémentation JPA viendra ici.
+- `service/` : logique métier, seul point d'entrée pour les futurs `api/` (REST) et MCP.
+- `llm/` : tout ce qui dépend du fournisseur de LLM, derrière `RecipeGenerator`.
+- Une nouvelle fonctionnalité suit le même schéma ; les contrôleurs REST iront dans `<fonctionnalité>/api/`. Les tests reprennent le package de la classe testée.
+
 ## Commandes
 - Tous les tests (sans appel LLM) : `mvn -q verify`
 - Une classe de test : `mvn -q test -pl backend -Dtest=Classe#methode`

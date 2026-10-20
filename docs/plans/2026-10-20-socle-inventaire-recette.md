@@ -66,7 +66,7 @@ La date du jour vient d'un `Clock` injecté (`ClockConfig`) : les tests figent a
 ### 4. Profil (`fr.antigaspi.profile`) et ustensiles (`fr.antigaspi.utensil`)
 
 - Gabarit versionné : [data/profil.example.md](../../data/profil.example.md). Chacun le copie en `data/profil.md`, qui est gitignoré.
-- `ProfileService.getProfile()` lit les lignes `- …` de la section `## Préférences`. Les titres sont reconnus sans tenir compte des accents ni de la casse.
+- `ProfileService.getProfile()` s'appuie sur `MarkdownProfileRepository`, qui lit les lignes `- …` de la section `## Préférences`. Les titres sont reconnus sans tenir compte des accents ni de la casse.
 - Le fichier est relu à chaque appel : une modification à la main est prise en compte sans redémarrer.
 - Si `data/profil.md` est absent, le gabarit sert de repli. S'il n'y a ni l'un ni l'autre, le profil est vide.
 - Les ustensiles disponibles sont lus dans [utensils.json](../../backend/src/main/resources/data/utensils.json) par `UtensilService.listAll()`. Ils seront stockés en base plus tard (voir la mise à jour plus bas).
@@ -131,6 +131,24 @@ Les choix faits :
 - `RecipeContext` transmet désormais les ustensiles au LLM ;
 - le prompt système décrit le nouveau format.
 
+## Mise à jour : organisation du code par fonctionnalité et par couche
+
+Le découpage par fonctionnalité (`ingredient`, `utensil`, `profile`, `recipe`) est conservé, pour que chacun travaille dans son dossier et limiter les conflits. Chaque fonctionnalité est maintenant découpée en sous-packages par couche :
+
+```
+fr.antigaspi
+├── ingredient/   model/ (Ingredient, Category, Unit, Urgency, IngredientView) · repository/ · service/
+├── utensil/      model/ (Utensil) · repository/ · service/
+├── profile/      model/ (UserProfile) · repository/ (Markdown) · service/
+├── recipe/       model/ (Recipe, RecipeIngredient, RecipeRequest, RecipeContext) · service/ · llm/ (RecipeGenerator, Spring AI, prompts)
+├── common/       utilitaires partagés (JsonResources)
+└── config/       configuration Spring (Clock)
+```
+
+- Les noms de classes n'ont pas changé, seuls les packages ont bougé. Les tests suivent le même découpage.
+- Le profil passe maintenant par un repository, comme l'inventaire et les ustensiles : `ProfileRepository` / `MarkdownProfileRepository`.
+- Les règles sont décrites dans [CLAUDE.md](../../CLAUDE.md) (section « Architecture du backend »). Les contrôleurs REST iront dans `<fonctionnalité>/api/`.
+
 ## À faire de votre côté
 
 1. **Mettre à jour votre `.env`** à partir du nouveau [.env.example](../../.env.example) :
@@ -143,7 +161,7 @@ Les choix faits :
 ## Commandes
 
 ```bash
-mvn verify                                        # build + formatter + 47 tests, sans appel LLM
+mvn verify                                        # build + formatter + 48 tests, sans appel LLM
 mvn -q test -pl backend -Dtest=IngredientServiceTest   # une seule classe
 mvn formatter:format -pl backend                  # reformater avant commit
 mvn test -pl backend -Pllm                        # test live : vrai appel Bedrock (coûte des tokens)
@@ -151,14 +169,14 @@ mvn test -pl backend -Pllm                        # test live : vrai appel Bedro
 
 Le test live `RecipeGenerationLiveTest` génère une recette avec les aliments les plus urgents et l'affiche dans la console. **Il n'a pas encore été lancé** : il faut des identifiants AWS valides. C'est la première chose à faire pour valider le prompt.
 
-## Tests (47, tous verts)
+## Tests (48, tous verts)
 
 | Classe | Ce qu'elle vérifie |
 |---|---|
 | `UrgencyTest` | Seuils 🔴/🟠/🟡/🟢 |
 | `IngredientServiceTest` | Tri, jours restants, estimation sans date, départage à date égale, N plus urgents, filtre par ids |
 | `JsonIngredientRepositoryTest` | Conversion des jours relatifs, champs absents, fichier invalide, fichier du projet |
-| `ProfileServiceTest` | Section Préférences, titres sans accents, puces `*`, repli sur le gabarit, profil vide |
+| `MarkdownProfileRepositoryTest` / `ProfileServiceTest` | Section Préférences, titres sans accents, puces `*`, repli sur le gabarit, profil vide |
 | `JsonUtensilRepositoryTest` / `UtensilServiceTest` | Chargement des ustensiles, fichier invalide, tri alphabétique |
 | `RecipePromptBuilderTest` | Contenu et ordre du prompt utilisateur, prompt système sans accolades |
 | `SpringAiRecipeGeneratorTest` | Mapping du JSON standardisé → `Recipe`, prompts envoyés, erreurs du LLM (`ChatModel` simulé) |
