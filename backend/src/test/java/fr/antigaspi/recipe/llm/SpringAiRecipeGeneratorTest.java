@@ -96,7 +96,7 @@ class SpringAiRecipeGeneratorTest {
 
     @Test
     void echecDeLAppelLlm_leveRecipeGenerationExceptionAvecLaCause() {
-        IllegalStateException failure = new IllegalStateException("Bedrock indisponible");
+        IllegalStateException failure = new IllegalStateException("LLM indisponible");
         SpringAiRecipeGenerator generator = generator(prompt -> {
             throw failure;
         });

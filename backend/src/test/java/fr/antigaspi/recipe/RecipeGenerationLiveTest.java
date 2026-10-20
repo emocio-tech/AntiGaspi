@@ -19,8 +19,8 @@ import fr.antigaspi.utensil.model.Utensil;
 import fr.antigaspi.utensil.repository.UtensilRepository;
 
 /**
- * Appel réel au LLM configuré (Bedrock par défaut), pour valider le prompt de bout en bout. Exclu du build par défaut
- * car il coûte des tokens et nécessite des identifiants : {@code mvn test -pl backend -Pllm}.
+ * Appel réel au LLM configuré (proxy compatible OpenAI), pour valider le prompt de bout en bout. Exclu du build par
+ * défaut car il coûte des tokens et nécessite des identifiants : {@code mvn test -pl backend -Pllm}.
  */
 @Tag("llm")
 @SpringBootTest

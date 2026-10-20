@@ -4,7 +4,7 @@ Application anti-gaspillage : inventaire d'aliments triés par urgence de pérem
 
 ## Stack
 - Backend : Java 21, Spring Boot 4, Spring AI 2, Maven multi-module (`pom.xml` agrégateur à la racine, module `backend/`).
-- LLM : Spring AI `ChatClient`, isolé derrière l'interface `RecipeGenerator`. Par défaut : Nova Lite via le proxy compatible OpenAI de la formation (`LLM_PROVIDER=openai`, `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL=nova-lite`) ; Bedrock en direct possible (`LLM_PROVIDER=bedrock`).
+- LLM : Spring AI `ChatClient`, isolé derrière l'interface `RecipeGenerator`. Nova Lite via le proxy compatible OpenAI de la formation (starter Spring AI OpenAI ; variables `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL=nova-lite`).
 - Données : inventaire et ustensiles en fichiers JSON statiques (`backend/src/main/resources/data/`), derrière des interfaces `*Repository` qui seront implémentées en base (PostgreSQL).
 - Profil utilisateur (préférences alimentaires) : fichier Markdown `data/profil.md` (gitignoré), gabarit `data/profil.example.md`.
 - Recette : format JSON standardisé (`title`, `servings`, `preparationMinutes`, `utensils`, `ingredients`, `steps`), décrit dans `docs/format-recette.md`.
@@ -19,7 +19,7 @@ fr.antigaspi
 ├── profile/      model/ (UserProfile) · repository/ (Markdown) · service/
 ├── recipe/       model/ (Recipe, RecipeIngredient, RecipeRequest, RecipeContext) · service/ · llm/ (RecipeGenerator, Spring AI, prompts) · cli/ (démo terminal)
 ├── common/       utilitaires partagés (JsonResources)
-└── config/       configuration Spring (Clock, choix du fournisseur LLM, clé API Bedrock)
+└── config/       configuration Spring (Clock)
 ```
 
 - `model/` : records et enums métier, sans dépendance à Spring.

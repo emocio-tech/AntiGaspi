@@ -49,7 +49,7 @@ Un ingrédient est stocké en base avec :
 ### 2. Génération de recettes par LLM
 - Un appel API au LLM génère des recettes à partir de la liste, **en priorisant les ingrédients bientôt périmés**.
 - Le prompt contient : les ingrédients triés par urgence, les **ustensiles disponibles** (stockés en base) et les **préférences** du profil utilisateur.
-- **Modèle** : **Amazon Nova Lite**, appelé via le **proxy compatible OpenAI** de la formation (ou Bedrock en direct). Le fournisseur est **interchangeable** : on change `LLM_PROVIDER` (`openai` | `bedrock`) / `LLM_MODEL` dans `.env`, sans toucher au code métier.
+- **Modèle** : **Amazon Nova Lite**, appelé via le **proxy compatible OpenAI** de la formation. Le fournisseur reste **interchangeable** : `LLM_BASE_URL` / `LLM_MODEL` dans `.env` pour toute API compatible OpenAI, ou un autre starter Spring AI, sans toucher au code métier.
 - Sortie au **format JSON standardisé**, stockable en base plus tard : titre, nombre de personnes, temps de préparation estimé, ustensiles utilisés, ingrédients (nom, poids ou quantité, unité, lien optionnel vers l'aliment du stock) et étapes. Voir [docs/format-recette.md](docs/format-recette.md).
 
 ### 3. « J'ai cuisiné cette recette » → mise à jour de la liste
@@ -111,7 +111,7 @@ Versions **proposées**, à confirmer à l'initialisation du code.
 | Backend | Java 21, Spring Boot 4, Spring AI 2, Maven |
 | Frontend | Angular (web app responsive) |
 | Base de données | PostgreSQL (docker-compose en dev), H2 en mémoire pour les tests, migrations Flyway |
-| LLM | Spring AI `ChatClient` multi-fournisseurs — Nova Lite via proxy compatible OpenAI par défaut, Bedrock en direct en option |
+| LLM | Spring AI `ChatClient` (starter OpenAI) — Nova Lite via le proxy compatible OpenAI de la formation |
 | MCP | Spring AI MCP Server, intégré au backend |
 | Profil utilisateur | fichier `data/profil.md` (gitignoré ; un gabarit sera versionné) |
 
@@ -203,7 +203,7 @@ Toutes les variables sont décrites dans [.env.example](.env.example) : fourniss
 | Base de données | PostgreSQL pour les ingrédients et les ustensiles (les recettes plus tard) | 2026-10-20 |
 | Feedback | pas de table : enrichit le profil `.md`, consolidé par le LLM | 2026-10-19 |
 | Utilisateurs | mono-utilisateur pour le MVP, pas d'authentification | 2026-10-19 |
-| LLM | Nova Lite via le proxy compatible OpenAI de la formation (Bedrock en direct en option), fournisseur interchangeable par configuration | 2026-10-20 |
+| LLM | Nova Lite via le proxy compatible OpenAI de la formation (accès direct à Bedrock abandonné), fournisseur interchangeable par configuration | 2026-10-20 |
 | Ingrédient | nom, catégorie, quantité + unité, péremption optionnelle (estimée sinon), date d'ajout | 2026-10-19 |
 | Urgence | indicateurs colorés plutôt que dates brutes | 2026-10-19 |
 | Consommation | écran de confirmation avec quantités modifiables | 2026-10-19 |
@@ -221,7 +221,7 @@ Toutes les variables sont décrites dans [.env.example](.env.example) : fourniss
 - [ ] « Placard de base » (sel, poivre, huile…) : considéré comme toujours disponible, sans être listé ?
 - [ ] Paramètres de génération : nombre de personnes, temps maximal, nombre de recettes proposées.
 - [ ] Faut-il garder un historique ou des favoris de recettes ?
-- [ ] Quotas et coût de Bedrock ; gestion des identifiants AWS à trois.
+- [ ] Quotas et coût du proxy Nova Lite ; partage de la clé à trois.
 - [ ] Usage local uniquement, ou hébergement ?
 - [ ] Sécurité du serveur MCP (accès local seulement ? jeton ?).
 - [ ] Écritures concurrentes du profil `.md` (interface + MCP en même temps).

@@ -12,8 +12,9 @@ import fr.antigaspi.recipe.model.Recipe;
 import fr.antigaspi.recipe.model.RecipeContext;
 
 /**
- * Générateur de recettes s'appuyant sur Spring AI : le fournisseur (Bedrock, Anthropic, OpenAI…) dépend uniquement de
- * la configuration. La réponse JSON est convertie en {@link Recipe} par la sortie structurée de Spring AI.
+ * Générateur de recettes s'appuyant sur Spring AI : le fournisseur (aujourd'hui un proxy compatible OpenAI) dépend
+ * uniquement de la configuration. La réponse JSON est convertie en {@link Recipe} par la sortie structurée de Spring
+ * AI.
  */
 @Component
 public class SpringAiRecipeGenerator implements RecipeGenerator {

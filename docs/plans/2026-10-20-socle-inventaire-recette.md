@@ -23,7 +23,7 @@ Branche : `feat/socle-inventaire-recette`. Périmètre : **backend uniquement**,
 | Données de test | Fichier JSON avec des **jours relatifs** (`"expiresInDays": 2`) | Des dates en dur seraient toutes périmées dans une semaine |
 | Ustensiles | ~~Section `## Équipement` du profil~~ → **en base** (`utensils.json` pour l'instant) | Décidé après discussion, voir la mise à jour ci-dessous |
 | Format de recette | **JSON standardisé** ([docs/format-recette.md](../format-recette.md)) | Pouvoir stocker les recettes en base plus tard |
-| LLM | Nova Lite via le proxy compatible OpenAI (Bedrock en direct en option), Spring AI, isolé derrière `RecipeGenerator` | Pour changer de fournisseur, on ne touche qu'à la configuration |
+| LLM | Nova Lite via le proxy compatible OpenAI de la formation, Spring AI, isolé derrière `RecipeGenerator` | Pour changer de fournisseur, on ne touche qu'à la configuration |
 | Date manquante | Estimée à date d'ajout + durée **minimale** de la catégorie | Mieux vaut estimer trop court que trop long |
 
 ## Ce qui a été réalisé
@@ -42,7 +42,7 @@ Branche : `feat/socle-inventaire-recette`. Périmètre : **backend uniquement**,
 
 - [pom.xml](../../pom.xml) agrégateur à la racine, avec le module `backend`. Sa présence active les hooks Maven de `.claude/`.
 - [backend/pom.xml](../../backend/pom.xml) contient :
-  - les starters Web, Validation et Spring AI Bedrock Converse ;
+  - les starters Web, Validation et Spring AI OpenAI (Bedrock au départ, retiré depuis, voir les mises à jour) ;
   - `formatter-maven-plugin`, que le hook pre-commit utilise pour lancer `formatter:validate` ;
   - le profil Maven `llm` pour les tests qui appellent un vrai LLM.
 - Le wrapper Maven (`mvnw`) est à la racine.
@@ -78,7 +78,7 @@ RecipeService.generate(RecipeRequest)
   ├─ aliments : les N plus urgents (défaut 8) ou ceux choisis par id
   ├─ ustensiles : UtensilService (utensils.json, en base plus tard)
   ├─ profil   : ProfileService (préférences)
-  └─ RecipeGenerator ──► SpringAiRecipeGenerator ──► Bedrock (Nova Lite)
+  └─ RecipeGenerator ──► SpringAiRecipeGenerator ──► proxy compatible OpenAI (Nova Lite)
                               prompt système : resources/prompts/recipe-system.md
                               prompt utilisateur : RecipePromptBuilder
                               réponse JSON ──► record Recipe (sortie structurée Spring AI)
@@ -87,7 +87,7 @@ RecipeService.generate(RecipeRequest)
 - `Recipe` suit le [format JSON standardisé](../format-recette.md) : `title`, `servings`, `preparationMinutes`, `utensils`, `ingredients` (nom, quantité, unité, `ingredientId` optionnel) et `steps`.
 - `RecipeRequest(ingredientIds, servings, maxMinutes)` : tous les champs sont optionnels. `RecipeRequest.mostUrgent()` utilise les valeurs par défaut.
 - Les erreurs du LLM (appel ou JSON invalide) sont transformées en `RecipeGenerationException`. Une requête invalide (aucun aliment, portions ≤ 0) lève une `IllegalArgumentException` **sans appeler le LLM**.
-- La durée de l'appel et les tokens consommés sont journalisés, pour suivre le coût Bedrock.
+- La durée de l'appel et les tokens consommés sont journalisés, pour suivre la consommation.
 
 ### 6. Paramétrage du LLM
 
@@ -100,10 +100,9 @@ RecipeService.generate(RecipeRequest)
 
   On l'améliore en modifiant ce fichier, sans toucher au code. Attention : **pas d'accolades** dans ce texte, Spring AI les prend pour des variables de template (un test le vérifie).
 - **Modèle et options** dans [application.yml](../../backend/src/main/resources/application.yml) :
-  - `LLM_MODEL` (défaut `eu.amazon.nova-lite-v1:0`) ;
+  - `LLM_BASE_URL`, `LLM_API_KEY` et `LLM_MODEL` (défaut `nova-lite`) ;
   - `temperature: 0.7` et `max-tokens: 1500` ;
   - `antigaspi.recipe.max-ingredients` et `antigaspi.recipe.default-servings`.
-- **Identifiants AWS** : `AWS_REGION`, `AWS_ACCESS_KEY_ID` et `AWS_SECRET_ACCESS_KEY` (+ `AWS_SESSION_TOKEN`) dans `.env`. Si on les laisse vides, la configuration `~/.aws` est utilisée (`aws configure` ou `aws sso login`).
 
 ## Mise à jour après discussion : ustensiles en base et format de recette
 
@@ -149,24 +148,23 @@ fr.antigaspi
 - Le profil passe maintenant par un repository, comme l'inventaire et les ustensiles : `ProfileRepository` / `MarkdownProfileRepository`.
 - Les règles sont décrites dans [CLAUDE.md](../../CLAUDE.md) (section « Architecture du backend »). Les contrôleurs REST iront dans `<fonctionnalité>/api/`.
 
-## Mise à jour : démo en terminal et clé API Bedrock
+## Mise à jour : démo en terminal
 
-- **Démo** : `mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=demo`. L'application démarre sans serveur web et affiche les aliments les plus urgents, puis la recette générée au format JSON standardisé. Elle s'arrête ensuite. En cas d'échec du LLM, le message d'erreur AWS est affiché. Le code est dans `recipe/cli/RecipeDemoRunner` et la configuration dans `application-demo.yml`.
-- **Clé API Bedrock** : en plus des clés IAM, on peut utiliser une clé API Bedrock (console Bedrock > API keys, préfixe `ABSK`). On la met dans `AWS_BEARER_TOKEN_BEDROCK`, dans `.env`, avec `LLM_PROVIDER=bedrock`. `config/BedrockApiKeyConfigurer` la transmet au SDK AWS, qui ne lit pas le `.env` lui-même.
+- **Démo** : `mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=demo`. L'application démarre sans serveur web et affiche les aliments les plus urgents, puis la recette générée au format JSON standardisé. Elle s'arrête ensuite. En cas d'échec du LLM, le message d'erreur est affiché. Le code est dans `recipe/cli/RecipeDemoRunner` et la configuration dans `application-demo.yml`.
 
-## Mise à jour : Nova Lite via le proxy compatible OpenAI (fournisseur par défaut)
+## Mise à jour : Nova Lite via le proxy compatible OpenAI (Bedrock retiré)
 
-La clé fournie par la formation n'est **pas** une clé AWS : c'est la clé d'un **proxy compatible OpenAI** (App Runner) qui sert Nova Lite. Le backend utilise donc maintenant le client **OpenAI** de Spring AI par défaut. Bedrock en direct reste disponible.
+La clé fournie par la formation n'est **pas** une clé AWS : c'est la clé d'un **proxy compatible OpenAI** (App Runner) qui sert Nova Lite. Le backend utilise donc le client **OpenAI** de Spring AI. L'accès direct à Bedrock (dépendance, configuration AWS, variables `LLM_PROVIDER`, `BEDROCK_MODEL`, `AWS_*`) a été **supprimé** : il ne servait plus. Pour changer de fournisseur plus tard, il suffira de changer `LLM_BASE_URL` (si l'API est compatible OpenAI), ou d'ajouter le starter Spring AI correspondant.
 
 | Variable `.env` | Valeur | Rôle |
 |---|---|---|
-| `LLM_PROVIDER` | `openai` (défaut) ou `bedrock` | Fournisseur actif. `config/LlmProviderEnvironmentPostProcessor` le traduit pour Spring AI ; une valeur inconnue donne une erreur claire au démarrage |
 | `LLM_BASE_URL` | URL du proxy, **sans** `/v1` | Adresse du proxy compatible OpenAI |
 | `LLM_API_KEY` | clé du proxy | Authentification |
 | `LLM_MODEL` | `nova-lite` | Nom du modèle exposé par le proxy |
-| `BEDROCK_MODEL`, `AWS_*` | | Utilisés seulement si `LLM_PROVIDER=bedrock` |
 
 Le `.env` est lu par Spring comme un fichier `.properties`. On n'y met que ces variables, et `application.yml` les relie aux propriétés `spring.ai.*`.
+
+> ⚠️ **Une seule ligne par variable.** Dans ce fichier, la dernière occurrence l'emporte. Une ligne d'exemple oubliée (`LLM_API_KEY=<ta clé…>`) remplace la vraie clé et donne l'erreur `Unexpected char 0xc3 … in Authorization value` : un caractère accentué s'est retrouvé dans la clé.
 
 Premier test réel avec la démo terminal : une recette au format standardisé en 4 à 5 s, pour environ 1 340 tokens en entrée et 450 à 500 en sortie. **Le prompt reste à améliorer** :
 - unités différentes de l'inventaire (des courgettes en `g` alors que le stock est en `pièce`) ;
@@ -176,7 +174,7 @@ Premier test réel avec la démo terminal : une recette au format standardisé e
 ## À faire de votre côté
 
 1. **Mettre à jour votre `.env`** à partir du nouveau [.env.example](../../.env.example) :
-   - **`LLM_PROVIDER=openai`**, **`LLM_BASE_URL`** (URL du proxy, à demander à l'équipe), **`LLM_API_KEY`**, **`LLM_MODEL=nova-lite`** ;
+   - **`LLM_BASE_URL`** (URL du proxy, à demander à l'équipe), **`LLM_API_KEY`** et **`LLM_MODEL=nova-lite`**, une seule ligne chacun. Les anciennes variables `LLM_PROVIDER` et `AWS_*` peuvent être supprimées ;
    - **`PROFILE_PATH=../data/profil.md`** : le backend se lance depuis `backend/`, donc l'ancienne valeur `./data/profil.md` ne trouvera pas le fichier.
 2. Lancer la démo : `mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=demo`.
 3. Copier le gabarit : `cp data/profil.example.md data/profil.md`, puis adapter les préférences. Une éventuelle section `## Équipement` n'est plus lue : les ustensiles se déclarent dans `utensils.json`.
@@ -184,7 +182,7 @@ Premier test réel avec la démo terminal : une recette au format standardisé e
 ## Commandes
 
 ```bash
-mvn verify                                        # build + formatter + 58 tests, sans appel LLM
+mvn verify                                        # build + formatter + 50 tests, sans appel LLM
 mvn -q test -pl backend -Dtest=IngredientServiceTest   # une seule classe
 mvn formatter:format -pl backend                  # reformater avant commit
 mvn test -pl backend -Pllm                        # test live : vrai appel au LLM (coûte des tokens)
@@ -193,7 +191,7 @@ mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=demo   # démo : alim
 
 Le test live `RecipeGenerationLiveTest` génère une recette avec les aliments les plus urgents et l'affiche dans la console. **Il n'a pas encore été lancé** : il faut des identifiants AWS valides. C'est la première chose à faire pour valider le prompt.
 
-## Tests (58, tous verts)
+## Tests (50, tous verts)
 
 | Classe | Ce qu'elle vérifie |
 |---|---|
@@ -206,8 +204,6 @@ Le test live `RecipeGenerationLiveTest` génère une recette avec les aliments l
 | `SpringAiRecipeGeneratorTest` | Mapping du JSON standardisé → `Recipe`, prompts envoyés, erreurs du LLM (`ChatModel` simulé) |
 | `RecipeServiceTest` | Choix des aliments, valeurs par défaut, refus des requêtes invalides sans appel LLM |
 | `RecipeDemoRunnerTest` | Affichage des aliments urgents et de la recette JSON, message en cas d'échec du LLM |
-| `LlmProviderEnvironmentPostProcessorTest` | Traduction de `LLM_PROVIDER`, valeur inconnue, priorité de la ligne de commande |
-| `BedrockApiKeyConfigurerTest` | Transmission de la clé API Bedrock au SDK AWS |
 | `BackendApplicationTests` | Démarrage du contexte Spring |
 
 ## Prochaines étapes proposées
