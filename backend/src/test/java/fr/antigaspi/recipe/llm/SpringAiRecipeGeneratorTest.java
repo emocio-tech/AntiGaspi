@@ -18,6 +18,7 @@ import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.Generation;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.core.io.ByteArrayResource;
+
 import fr.antigaspi.ingredient.model.Unit;
 import fr.antigaspi.profile.model.UserProfile;
 import fr.antigaspi.recipe.model.Recipe;

@@ -7,6 +7,7 @@ import org.springframework.ai.chat.client.ResponseEntity;
 import org.springframework.ai.chat.metadata.Usage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.stereotype.Component;
+
 import fr.antigaspi.recipe.model.Recipe;
 import fr.antigaspi.recipe.model.RecipeContext;
 

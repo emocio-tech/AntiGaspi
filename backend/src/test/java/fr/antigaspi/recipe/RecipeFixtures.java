@@ -3,6 +3,7 @@ package fr.antigaspi.recipe;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+
 import fr.antigaspi.ingredient.model.Category;
 import fr.antigaspi.ingredient.model.Ingredient;
 import fr.antigaspi.ingredient.model.IngredientView;

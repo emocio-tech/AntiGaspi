@@ -9,6 +9,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.ClassPathResource;
+
 import fr.antigaspi.ingredient.model.Unit;
 import fr.antigaspi.profile.model.UserProfile;
 import fr.antigaspi.recipe.model.RecipeContext;

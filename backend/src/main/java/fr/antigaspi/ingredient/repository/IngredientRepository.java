@@ -1,6 +1,7 @@
 package fr.antigaspi.ingredient.repository;
 
 import java.util.List;
+
 import fr.antigaspi.ingredient.model.Ingredient;
 
 /**

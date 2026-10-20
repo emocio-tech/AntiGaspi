@@ -4,6 +4,7 @@ import java.util.Comparator;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
+
 import fr.antigaspi.utensil.model.Utensil;
 import fr.antigaspi.utensil.repository.UtensilRepository;
 

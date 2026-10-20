@@ -1,6 +1,7 @@
 package fr.antigaspi.recipe.model;
 
 import java.util.List;
+
 import fr.antigaspi.ingredient.model.IngredientView;
 import fr.antigaspi.profile.model.UserProfile;
 import fr.antigaspi.utensil.model.Utensil;

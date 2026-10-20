@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository;
 
 import fr.antigaspi.common.JsonResources;
 import tools.jackson.core.type.TypeReference;
+
 import fr.antigaspi.utensil.model.Utensil;
 
 /**

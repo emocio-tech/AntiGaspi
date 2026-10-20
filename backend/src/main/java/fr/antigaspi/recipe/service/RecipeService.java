@@ -3,6 +3,7 @@ package fr.antigaspi.recipe.service;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
+
 import fr.antigaspi.ingredient.model.IngredientView;
 import fr.antigaspi.ingredient.service.IngredientService;
 import fr.antigaspi.profile.service.ProfileService;
