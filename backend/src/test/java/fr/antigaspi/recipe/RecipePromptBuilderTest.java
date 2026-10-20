@@ -12,14 +12,15 @@ import org.springframework.core.io.ClassPathResource;
 
 import fr.antigaspi.ingredient.Unit;
 import fr.antigaspi.profile.UserProfile;
+import fr.antigaspi.utensil.Utensil;
 
 class RecipePromptBuilderTest {
 
     private final RecipePromptBuilder builder = new RecipePromptBuilder(
             new ByteArrayResource("Tu es un chef.".getBytes(StandardCharsets.UTF_8)));
 
-    private static final UserProfile PROFILE = new UserProfile(List.of("Végétarien le midi"),
-            List.of("Four", "Pas de friteuse"));
+    private static final UserProfile PROFILE = new UserProfile(List.of("Végétarien le midi"));
+    private static final List<Utensil> UTENSILS = List.of(new Utensil(1L, "Four"), new Utensil(2L, "Poêle"));
 
     @Test
     void systemPrompt_estLuDepuisLaRessource() {
@@ -27,11 +28,12 @@ class RecipePromptBuilderTest {
     }
 
     @Test
-    void systemPromptDuProjet_existeEtNeContientPasDAccolades() {
+    void systemPromptDuProjet_decritLeFormatStandardiseSansAccolades() {
         // Les accolades seraient interprétées comme variables de template par Spring AI
         String prompt = new RecipePromptBuilder(new ClassPathResource("prompts/recipe-system.md")).systemPrompt();
 
-        assertThat(prompt).contains("anti-gaspillage").doesNotContain("{", "}");
+        assertThat(prompt).contains("anti-gaspillage", "title", "servings", "preparationMinutes", "utensils",
+                "ingredients", "steps").doesNotContain("{", "}");
     }
 
     @Test
@@ -39,7 +41,7 @@ class RecipePromptBuilderTest {
         RecipeContext context = new RecipeContext(
                 List.of(view(1, "Yaourt", "2", Unit.PIECE, -1, false), view(2, "Poulet", "400", Unit.G, 0, false),
                         view(3, "Courgettes", "2.50", Unit.KG, 2, false), view(4, "Pommes", "6", Unit.PIECE, 3, true)),
-                PROFILE, 2, null);
+                UTENSILS, PROFILE, 2, null);
 
         String prompt = builder.userPrompt(context);
 
@@ -52,24 +54,24 @@ class RecipePromptBuilderTest {
     }
 
     @Test
-    void userPrompt_contientProfilPortionsEtTemps() {
-        RecipeContext context = new RecipeContext(List.of(view(1, "Tomates", "3", Unit.PIECE, 2, false)), PROFILE, 4,
-                30);
+    void userPrompt_contientUstensilesPreferencesPortionsEtTemps() {
+        RecipeContext context = new RecipeContext(List.of(view(1, "Tomates", "3", Unit.PIECE, 2, false)), UTENSILS,
+                PROFILE, 4, 30);
 
         String prompt = builder.userPrompt(context);
 
-        assertThat(prompt).contains("Nombre de portions : 4", "Temps maximal : 30 minutes", "- Four",
-                "- Pas de friteuse", "- Végétarien le midi");
+        assertThat(prompt).contains("Nombre de personnes : 4", "Temps maximal : 30 minutes",
+                "Ustensiles disponibles : \n- Four\n- Poêle", "- Végétarien le midi");
     }
 
     @Test
-    void userPrompt_sansContrainteNiProfil() {
-        RecipeContext context = new RecipeContext(List.of(view(1, "Tomates", "3", Unit.PIECE, 2, false)),
+    void userPrompt_sansContrainteNiUstensileNiPreference() {
+        RecipeContext context = new RecipeContext(List.of(view(1, "Tomates", "3", Unit.PIECE, 2, false)), List.of(),
                 UserProfile.empty(), 2, null);
 
         String prompt = builder.userPrompt(context);
 
-        assertThat(prompt).contains("Temps maximal : aucune contrainte", "Équipement disponible : non renseigné",
+        assertThat(prompt).contains("Temps maximal : aucune contrainte", "Ustensiles disponibles : non renseignés",
                 "Préférences : aucune");
     }
 }

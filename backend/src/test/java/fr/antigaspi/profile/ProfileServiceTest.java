@@ -19,15 +19,14 @@ class ProfileServiceTest {
     }
 
     @Test
-    void litLesSectionsPreferencesEtEquipement() throws IOException {
+    void litLaSectionPreferencesEtIgnoreLesAutres() throws IOException {
         Path profile = write("profil.md", """
                 # Profil
                 ## Préférences
                 - N'aime pas les plats épicés
                 - Végétarien le midi
                 ## Équipement
-                - Four, plaques à induction
-                - Pas de friteuse
+                - Four
                 ## Historique des retours
                 - 2026-10-19 · Curry de légumes · 👎 · « trop épicé »
                 """);
@@ -35,50 +34,40 @@ class ProfileServiceTest {
         UserProfile result = new ProfileService(profile).getProfile();
 
         assertThat(result.preferences()).containsExactly("N'aime pas les plats épicés", "Végétarien le midi");
-        assertThat(result.equipment()).containsExactly("Four, plaques à induction", "Pas de friteuse");
     }
 
     @Test
     void sectionAbsente_listeVide() throws IOException {
         Path profile = write("profil.md", """
-                ## Équipement
-                - Four
+                ## Historique des retours
+                - RAS
                 """);
 
-        UserProfile result = new ProfileService(profile).getProfile();
-
-        assertThat(result.preferences()).isEmpty();
-        assertThat(result.equipment()).containsExactly("Four");
+        assertThat(new ProfileService(profile).getProfile().preferences()).isEmpty();
     }
 
     @Test
-    void titresToleresSansAccentNiMajusculeEtPucesEtoile() throws IOException {
+    void titreToleresSansAccentNiMajusculeEtPucesEtoile() throws IOException {
         Path profile = write("profil.md", """
-                ##  preferences
+                ##  PREFERENCES
                 *   Sans gluten   \s
                 texte libre ignoré
-
-                ## EQUIPEMENT
-                -   Micro-ondes
                 -
                 """);
 
-        UserProfile result = new ProfileService(profile).getProfile();
-
-        assertThat(result.preferences()).containsExactly("Sans gluten");
-        assertThat(result.equipment()).containsExactly("Micro-ondes");
+        assertThat(new ProfileService(profile).getProfile().preferences()).containsExactly("Sans gluten");
     }
 
     @Test
     void fichierAbsent_utiliseLeGabaritDuMemeDossier() throws IOException {
         write(ProfileService.TEMPLATE_FILE_NAME, """
-                ## Équipement
-                - Four
+                ## Préférences
+                - Sans porc
                 """);
 
         UserProfile result = new ProfileService(dir.resolve("profil.md")).getProfile();
 
-        assertThat(result.equipment()).containsExactly("Four");
+        assertThat(result.preferences()).containsExactly("Sans porc");
     }
 
     @Test
@@ -87,11 +76,10 @@ class ProfileServiceTest {
     }
 
     @Test
-    void gabaritDuProjet_contientDeLEquipement() {
+    void gabaritDuProjet_contientDesPreferences() {
         // Les tests Maven s'exécutent depuis backend/ : le gabarit est dans ../data
         UserProfile result = new ProfileService(Path.of("../data/absent.md")).getProfile();
 
-        assertThat(result.equipment()).isNotEmpty();
         assertThat(result.preferences()).isNotEmpty();
     }
 }

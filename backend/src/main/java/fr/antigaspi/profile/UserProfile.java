@@ -7,12 +7,10 @@ import java.util.List;
  *
  * @param preferences
  *            préférences alimentaires (section « Préférences »)
- * @param equipment
- *            équipement de cuisine disponible (section « Équipement »)
  */
-public record UserProfile(List<String> preferences, List<String> equipment) {
+public record UserProfile(List<String> preferences) {
 
     public static UserProfile empty() {
-        return new UserProfile(List.of(), List.of());
+        return new UserProfile(List.of());
     }
 }

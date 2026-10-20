@@ -4,14 +4,18 @@ import java.util.List;
 
 import fr.antigaspi.ingredient.IngredientView;
 import fr.antigaspi.profile.UserProfile;
+import fr.antigaspi.utensil.Utensil;
 
 /**
  * Tout ce que le générateur doit connaître pour proposer une recette.
  *
  * @param ingredients
  *            aliments disponibles, du plus urgent au moins urgent
+ * @param utensils
+ *            ustensiles disponibles
  * @param maxMinutes
  *            temps maximal, {@code null} si aucune contrainte
  */
-public record RecipeContext(List<IngredientView> ingredients, UserProfile profile, int servings, Integer maxMinutes) {
+public record RecipeContext(List<IngredientView> ingredients, List<Utensil> utensils, UserProfile profile, int servings,
+        Integer maxMinutes) {
 }

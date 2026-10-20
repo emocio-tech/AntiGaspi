@@ -21,13 +21,15 @@ import fr.antigaspi.ingredient.IngredientView;
 import fr.antigaspi.ingredient.Unit;
 import fr.antigaspi.profile.ProfileService;
 import fr.antigaspi.profile.UserProfile;
+import fr.antigaspi.utensil.Utensil;
+import fr.antigaspi.utensil.UtensilService;
 
 class RecipeServiceTest {
 
     private static final Clock CLOCK = Clock.fixed(RecipeFixtures.NOW, ZoneOffset.UTC);
-    private static final UserProfile PROFILE = new UserProfile(List.of("Végétarien"), List.of("Four"));
-    private static final Recipe RECIPE = new Recipe("Soupe", 2, 30, List.of(), List.of(), List.of("Mixer"),
-            List.of("Four"));
+    private static final UserProfile PROFILE = new UserProfile(List.of("Végétarien"));
+    private static final List<Utensil> UTENSILS = List.of(new Utensil(1L, "Four"));
+    private static final Recipe RECIPE = new Recipe("Soupe", 2, 30, List.of("Four"), List.of(), List.of("Mixer"));
 
     private final AtomicReference<RecipeContext> receivedContext = new AtomicReference<>();
     private final RecipeGenerator generator = context -> {
@@ -48,7 +50,9 @@ class RecipeServiceTest {
 
     private RecipeService service(Ingredient... ingredients) {
         IngredientService ingredientService = new IngredientService(() -> List.of(ingredients), CLOCK);
-        return new RecipeService(ingredientService, profileService, generator, new RecipeProperties(2, 3));
+        UtensilService utensilService = new UtensilService(() -> UTENSILS);
+        return new RecipeService(ingredientService, utensilService, profileService, generator,
+                new RecipeProperties(2, 3));
     }
 
     private List<String> receivedNames() {
@@ -68,6 +72,7 @@ class RecipeServiceTest {
         assertThat(receivedContext.get().servings()).isEqualTo(3);
         assertThat(receivedContext.get().maxMinutes()).isNull();
         assertThat(receivedContext.get().profile()).isEqualTo(PROFILE);
+        assertThat(receivedContext.get().utensils()).isEqualTo(UTENSILS);
     }
 
     @Test

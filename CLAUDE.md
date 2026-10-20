@@ -3,9 +3,11 @@
 Application anti-gaspillage : inventaire d'aliments triés par urgence de péremption et recettes générées par un LLM. Voir le [README](README.md) pour le cadrage complet.
 
 ## Stack
-- Backend : Java 21, Spring Boot 3, Maven multi-module (`pom.xml` parent à la racine, module `backend/`).
+- Backend : Java 21, Spring Boot 4, Spring AI 2, Maven multi-module (`pom.xml` agrégateur à la racine, module `backend/`).
 - LLM : Spring AI `ChatClient`, Amazon Bedrock Converse (Nova Lite) par défaut, isolé derrière l'interface `RecipeGenerator`.
-- Profil utilisateur (préférences, équipement) : fichier Markdown `data/profil.md` (gitignoré), gabarit `data/profil.example.md`.
+- Données : inventaire et ustensiles en fichiers JSON statiques (`backend/src/main/resources/data/`), derrière des interfaces `*Repository` qui seront implémentées en base (PostgreSQL).
+- Profil utilisateur (préférences alimentaires) : fichier Markdown `data/profil.md` (gitignoré), gabarit `data/profil.example.md`.
+- Recette : format JSON standardisé (`title`, `servings`, `preparationMinutes`, `utensils`, `ingredients`, `steps`), décrit dans `docs/format-recette.md`.
 
 ## Commandes
 - Tous les tests (sans appel LLM) : `mvn -q verify`

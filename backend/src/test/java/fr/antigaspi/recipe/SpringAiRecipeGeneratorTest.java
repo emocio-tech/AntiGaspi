@@ -21,24 +21,28 @@ import org.springframework.core.io.ByteArrayResource;
 
 import fr.antigaspi.ingredient.Unit;
 import fr.antigaspi.profile.UserProfile;
+import fr.antigaspi.utensil.Utensil;
 
 class SpringAiRecipeGeneratorTest {
 
+    /** Exemple du format JSON standardisé d'une recette. */
     private static final String RECIPE_JSON = """
             {
               "title": "Gratin de courgettes",
               "servings": 2,
-              "totalMinutes": 40,
-              "usedIngredients": [{"ingredientId": 3, "name": "Courgettes", "quantity": 0.5, "unit": "kg"}],
-              "missingIngredients": [{"ingredientId": null, "name": "Sel", "quantity": 1, "unit": "pincée"}],
-              "steps": ["Couper les courgettes", "Enfourner 30 minutes"],
-              "requiredEquipment": ["Four"]
+              "preparationMinutes": 40,
+              "utensils": ["Four", "Plat à gratin"],
+              "ingredients": [
+                {"ingredientId": 3, "name": "Courgettes", "quantity": 0.5, "unit": "kg"},
+                {"ingredientId": null, "name": "Sel", "quantity": 1, "unit": "pincée"}
+              ],
+              "steps": ["Couper les courgettes", "Enfourner 30 minutes"]
             }
             """;
 
     private static final RecipeContext CONTEXT = new RecipeContext(
-            List.of(view(3, "Courgettes", "2.5", Unit.KG, 2, false)), new UserProfile(List.of(), List.of("Four")), 2,
-            null);
+            List.of(view(3, "Courgettes", "2.5", Unit.KG, 2, false)),
+            List.of(new Utensil(1L, "Four"), new Utensil(2L, "Plat à gratin")), UserProfile.empty(), 2, null);
 
     private final AtomicReference<Prompt> sentPrompt = new AtomicReference<>();
 
@@ -57,17 +61,13 @@ class SpringAiRecipeGeneratorTest {
     }
 
     @Test
-    void convertitLaReponseJsonEnRecette() {
+    void convertitLaReponseJsonStandardiseeEnRecette() {
         Recipe recipe = generatorAnswering(RECIPE_JSON).generate(CONTEXT);
 
-        assertThat(recipe.title()).isEqualTo("Gratin de courgettes");
-        assertThat(recipe.servings()).isEqualTo(2);
-        assertThat(recipe.totalMinutes()).isEqualTo(40);
-        assertThat(recipe.usedIngredients())
-                .containsExactly(new RecipeIngredient(3L, "Courgettes", new BigDecimal("0.5"), "kg"));
-        assertThat(recipe.missingIngredients()).extracting(RecipeIngredient::ingredientId).containsOnlyNulls();
-        assertThat(recipe.steps()).hasSize(2);
-        assertThat(recipe.requiredEquipment()).containsExactly("Four");
+        assertThat(recipe).isEqualTo(new Recipe("Gratin de courgettes", 2, 40, List.of("Four", "Plat à gratin"),
+                List.of(new RecipeIngredient(3L, "Courgettes", new BigDecimal("0.5"), "kg"),
+                        new RecipeIngredient(null, "Sel", new BigDecimal("1"), "pincée")),
+                List.of("Couper les courgettes", "Enfourner 30 minutes")));
     }
 
     @Test
@@ -81,7 +81,7 @@ class SpringAiRecipeGeneratorTest {
         });
         assertThat(prompt.getInstructions()).anySatisfy(message -> {
             assertThat(message.getMessageType()).isEqualTo(MessageType.USER);
-            assertThat(message.getText()).contains("[3] Courgettes");
+            assertThat(message.getText()).contains("[3] Courgettes", "- Plat à gratin");
         });
     }
 

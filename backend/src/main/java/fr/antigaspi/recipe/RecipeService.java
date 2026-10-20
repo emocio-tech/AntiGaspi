@@ -7,21 +7,24 @@ import org.springframework.stereotype.Service;
 import fr.antigaspi.ingredient.IngredientService;
 import fr.antigaspi.ingredient.IngredientView;
 import fr.antigaspi.profile.ProfileService;
+import fr.antigaspi.utensil.UtensilService;
 
 /**
- * Génération d'une recette à partir de l'inventaire et du profil utilisateur.
+ * Génération d'une recette à partir de l'inventaire, des ustensiles disponibles et du profil utilisateur.
  */
 @Service
 public class RecipeService {
 
     private final IngredientService ingredientService;
+    private final UtensilService utensilService;
     private final ProfileService profileService;
     private final RecipeGenerator recipeGenerator;
     private final RecipeProperties properties;
 
-    public RecipeService(IngredientService ingredientService, ProfileService profileService,
-            RecipeGenerator recipeGenerator, RecipeProperties properties) {
+    public RecipeService(IngredientService ingredientService, UtensilService utensilService,
+            ProfileService profileService, RecipeGenerator recipeGenerator, RecipeProperties properties) {
         this.ingredientService = ingredientService;
+        this.utensilService = utensilService;
         this.profileService = profileService;
         this.recipeGenerator = recipeGenerator;
         this.properties = properties;
@@ -51,8 +54,8 @@ public class RecipeService {
         if (ingredients.isEmpty()) {
             throw new IllegalArgumentException("Aucun aliment disponible pour générer une recette");
         }
-        return recipeGenerator
-                .generate(new RecipeContext(ingredients, profileService.getProfile(), servings, maxMinutes));
+        return recipeGenerator.generate(new RecipeContext(ingredients, utensilService.listAll(),
+                profileService.getProfile(), servings, maxMinutes));
     }
 
     private List<IngredientView> selectIngredients(List<Long> ids) {

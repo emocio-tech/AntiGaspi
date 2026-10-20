@@ -2,18 +2,12 @@
 
 <!--
   Gabarit versionné. Copier en data/profil.md (gitignoré) et l'adapter.
-  Seules les lignes de liste ("- ...") des sections ci-dessous sont lues.
+  Seules les lignes de liste ("- ...") de la section Préférences sont lues.
+  Les ustensiles disponibles ne sont plus ici : ils sont stockés avec les données (base).
 -->
 
 ## Préférences
 - N'aime pas les plats épicés
 - Végétarien le midi
-
-## Équipement
-- Four
-- Plaques à induction
-- Micro-ondes
-- Poêle, casserole, faitout
-- Pas de robot ni de friteuse
 
 ## Historique des retours

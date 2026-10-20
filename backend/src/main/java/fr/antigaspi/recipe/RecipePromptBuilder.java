@@ -11,10 +11,12 @@ import org.springframework.stereotype.Component;
 
 import fr.antigaspi.ingredient.Ingredient;
 import fr.antigaspi.ingredient.IngredientView;
+import fr.antigaspi.utensil.Utensil;
 
 /**
  * Construit les prompts envoyés au LLM : le prompt système (rôle et règles, dans
- * {@code resources/prompts/recipe-system.md}) et le prompt utilisateur (aliments, profil, contraintes).
+ * {@code resources/prompts/recipe-system.md}) et le prompt utilisateur (aliments, ustensiles, préférences,
+ * contraintes).
  * <p>
  * Pas d'accolades dans les prompts : Spring AI les interpréterait comme des variables de template.
  */
@@ -37,7 +39,7 @@ public class RecipePromptBuilder {
 
     public String userPrompt(RecipeContext context) {
         StringBuilder prompt = new StringBuilder("Propose une recette.\n\n");
-        prompt.append("Nombre de portions : ").append(context.servings()).append('\n');
+        prompt.append("Nombre de personnes : ").append(context.servings()).append('\n');
         prompt.append("Temps maximal : ")
                 .append(context.maxMinutes() == null ? "aucune contrainte" : context.maxMinutes() + " minutes")
                 .append("\n\n");
@@ -45,7 +47,8 @@ public class RecipePromptBuilder {
         prompt.append("Aliments disponibles, du plus urgent au moins urgent (identifiant entre crochets) :\n");
         context.ingredients().forEach(view -> prompt.append(ingredientLine(view)).append('\n'));
 
-        appendList(prompt, "Équipement disponible", context.profile().equipment(), "non renseigné");
+        appendList(prompt, "Ustensiles disponibles", context.utensils().stream().map(Utensil::name).toList(),
+                "non renseignés");
         appendList(prompt, "Préférences", context.profile().preferences(), "aucune");
         return prompt.toString();
     }

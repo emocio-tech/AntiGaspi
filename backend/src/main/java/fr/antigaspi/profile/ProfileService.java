@@ -16,11 +16,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /**
- * Lecture du profil utilisateur (préférences, équipement) depuis un fichier Markdown. Si le fichier est absent, le
+ * Lecture du profil utilisateur (préférences alimentaires) depuis un fichier Markdown. Si le fichier est absent, le
  * gabarit {@value #TEMPLATE_FILE_NAME} situé dans le même dossier est utilisé.
  * <p>
  * Le fichier est relu à chaque appel pour prendre en compte les modifications faites à la main. Seules les lignes de
- * liste ({@code -} ou {@code *}) des sections {@code ## Préférences} et {@code ## Équipement} sont lues.
+ * liste ({@code -} ou {@code *}) de la section {@code ## Préférences} sont lues ; les ustensiles sont gérés à part
+ * ({@code fr.antigaspi.utensil}).
  */
 @Service
 public class ProfileService {
@@ -58,14 +59,12 @@ public class ProfileService {
 
     private static UserProfile parse(List<String> lines) {
         List<String> preferences = new ArrayList<>();
-        List<String> equipment = new ArrayList<>();
         List<String> current = null;
         for (String rawLine : lines) {
             String line = rawLine.strip();
             if (line.startsWith("## ")) {
                 current = switch (normalize(line.substring(3))) {
                 case "preferences" -> preferences;
-                case "equipement" -> equipment;
                 default -> null;
                 };
             } else if (current != null && (line.startsWith("- ") || line.startsWith("* "))) {
@@ -75,10 +74,10 @@ public class ProfileService {
                 }
             }
         }
-        return new UserProfile(List.copyOf(preferences), List.copyOf(equipment));
+        return new UserProfile(List.copyOf(preferences));
     }
 
-    /** Titre de section en minuscules, sans accents ni espaces superflus : « Équipement » -> « equipement ». */
+    /** Titre de section en minuscules, sans accents ni espaces superflus : « Préférences » -> « preferences ». */
     private static String normalize(String title) {
         return Normalizer.normalize(title.strip(), Normalizer.Form.NFD).replaceAll("\\p{M}", "")
                 .toLowerCase(Locale.ROOT);

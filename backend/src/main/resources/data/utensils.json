@@ -1,0 +1,16 @@
+[
+  { "id": 1,  "name": "Four" },
+  { "id": 2,  "name": "Plaques de cuisson" },
+  { "id": 3,  "name": "Micro-ondes" },
+  { "id": 4,  "name": "Poêle" },
+  { "id": 5,  "name": "Casserole" },
+  { "id": 6,  "name": "Faitout" },
+  { "id": 7,  "name": "Plat à gratin" },
+  { "id": 8,  "name": "Saladier" },
+  { "id": 9,  "name": "Planche à découper" },
+  { "id": 10, "name": "Couteau de cuisine" },
+  { "id": 11, "name": "Fouet" },
+  { "id": 12, "name": "Mixeur plongeant" },
+  { "id": 13, "name": "Râpe" },
+  { "id": 14, "name": "Passoire" }
+]
