@@ -3,17 +3,29 @@ package fr.antigaspi.chat.llm;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.function.Consumer;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
+import org.springframework.ai.chat.client.advisor.SimpleLoggerAdvisor;
 import org.springframework.ai.chat.client.advisor.ToolCallingAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.memory.MessageWindowChatMemory;
+import org.springframework.ai.chat.model.ToolContext;
+import org.springframework.ai.support.ToolCallbacks;
+import org.springframework.ai.tool.ToolCallback;
+import org.springframework.ai.tool.definition.ToolDefinition;
+import org.springframework.ai.tool.metadata.ToolMetadata;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 
 import fr.antigaspi.ingredient.tool.IngredientTools;
+import fr.antigaspi.recipe.tool.RecipeTools;
 import fr.antigaspi.utensil.tool.UtensilTools;
 
 /**
@@ -29,15 +41,29 @@ public class ChatAssistant {
     /** Mono-utilisateur : une seule conversation. */
     private static final String CONVERSATION_ID = "antigaspi";
 
+    private static final Logger log = LoggerFactory.getLogger(ChatAssistant.class);
+
     private final ChatClient chatClient;
 
-    public ChatAssistant(ChatClient.Builder chatClientBuilder, IngredientTools ingredientTools,
-            UtensilTools utensilTools, @Value("classpath:prompts/chat-system.md") Resource systemPrompt) {
-        this.chatClient = chatClientBuilder.defaultSystem(read(systemPrompt))
-                .defaultTools(ingredientTools, utensilTools)
+    private final ApplicationEventPublisher eventPublisher;
+
+    public ChatAssistant(ChatClient.Builder chatClientBuilder, IngredientTools ingredientTools, RecipeTools recipeTools,
+            UtensilTools utensilTools, ApplicationEventPublisher eventPublisher,
+            @Value("classpath:prompts/chat-system.md") Resource systemPrompt) {
+        this.eventPublisher = eventPublisher;
+        ToolCallback[] observedTools = Arrays.stream(ToolCallbacks.from(ingredientTools, recipeTools, utensilTools))
+                .map(tool -> (ToolCallback) new ObservedToolCallback(tool, this::notifyToolCall))
+                .toArray(ToolCallback[]::new);
+        this.chatClient = chatClientBuilder.defaultSystem(read(systemPrompt)).defaultTools((Object[]) observedTools)
                 .defaultAdvisors(MessageChatMemoryAdvisor.builder(MessageWindowChatMemory.builder().build()).build(),
-                        ToolCallingAdvisor.builder().build())
+                        ToolCallingAdvisor.builder().build(), new SimpleLoggerAdvisor())
                 .build();
+    }
+
+    /** Journalise l'appel et publie un {@link ToolCalledEvent}, affiché par exemple par la démo de chat. */
+    private void notifyToolCall(ToolCalledEvent event) {
+        log.info("Appel du tool {} {}", event.name(), event.arguments());
+        eventPublisher.publishEvent(event);
     }
 
     /**
@@ -50,6 +76,37 @@ public class ChatAssistant {
                     .advisors(advisor -> advisor.param(ChatMemory.CONVERSATION_ID, CONVERSATION_ID)).call().content();
         } catch (RuntimeException e) {
             throw new ChatException("Échec de la réponse de l'assistant : " + e.getMessage(), e);
+        }
+    }
+
+    /** Tool qui signale chaque appel avant de le déléguer au tool d'origine. */
+    private record ObservedToolCallback(ToolCallback delegate, Consumer<ToolCalledEvent> observer)
+            implements ToolCallback {
+
+        @Override
+        public ToolDefinition getToolDefinition() {
+            return delegate.getToolDefinition();
+        }
+
+        @Override
+        public ToolMetadata getToolMetadata() {
+            return delegate.getToolMetadata();
+        }
+
+        @Override
+        public String call(String toolInput) {
+            observer.accept(describe(toolInput));
+            return delegate.call(toolInput);
+        }
+
+        @Override
+        public String call(String toolInput, ToolContext toolContext) {
+            observer.accept(describe(toolInput));
+            return delegate.call(toolInput, toolContext);
+        }
+
+        private ToolCalledEvent describe(String toolInput) {
+            return new ToolCalledEvent(delegate.getToolDefinition().name(), toolInput);
         }
     }
 

@@ -160,4 +160,20 @@ class RecipeServiceTest {
                 .isInstanceOf(IllegalArgumentException.class);
         assertThat(receivedContext.get()).isNull();
     }
+
+    @Test
+    void check_compareAInventaireCompletEtPasSeulementAuxPrioritaires() {
+        // maxIngredients vaut 2 : le riz n'est pas prioritaire mais reste dans l'inventaire
+        RecipeService service = service(ingredient(1, "Courgettes", 1), ingredient(2, "Tomates", 2),
+                ingredient(3, "Riz", 30));
+        Recipe recipe = new Recipe("Riz sauté", 2, 20, List.of(),
+                List.of(new RecipeIngredient(3L, "Riz", BigDecimal.ONE, "pièce"),
+                        new RecipeIngredient(99L, "Oignon", BigDecimal.ONE, "pièce")),
+                List.of("Cuire le riz et l'oignon"));
+
+        GeneratedRecipe checked = service.check(recipe);
+
+        assertThat(checked.recipe().ingredients()).extracting(RecipeIngredient::ingredientId).containsExactly(3L, null);
+        assertThat(checked.issues()).extracting(RecipeIssue::type).containsExactly(RecipeIssueType.IDENTIFIANT_INCONNU);
+    }
 }

@@ -8,14 +8,18 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Set;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Profile;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 import fr.antigaspi.chat.llm.ChatAssistant;
 import fr.antigaspi.chat.llm.ChatException;
+import fr.antigaspi.chat.llm.ToolCalledEvent;
 
 /**
  * Démo de chat en terminal (profil Spring {@code chat}) : chaque ligne saisie est envoyée à l'assistant, qui consulte
@@ -24,6 +28,8 @@ import fr.antigaspi.chat.llm.ChatException;
 @Component
 @Profile("chat")
 public class ChatDemoRunner implements ApplicationRunner {
+
+    private static final Logger log = LoggerFactory.getLogger(ChatDemoRunner.class);
 
     private static final Set<String> COMMANDES_SORTIE = Set.of("quitter", "exit");
 
@@ -42,6 +48,12 @@ public class ChatDemoRunner implements ApplicationRunner {
         this.out = out;
     }
 
+    /** Affiche chaque appel de tool par le LLM, pour suivre son raisonnement pendant la démo. */
+    @EventListener
+    public void onToolCall(ToolCalledEvent event) {
+        out.println("  ⚙ " + event.name() + " " + event.arguments());
+    }
+
     @Override
     public void run(ApplicationArguments args) {
         out.println();
@@ -55,9 +67,13 @@ public class ChatDemoRunner implements ApplicationRunner {
             if (message.isEmpty()) {
                 continue;
             }
+            log.info("Vous > {}", message);
             try {
-                out.println("AntiGaspi > " + assistant.reply(message));
+                String reponse = assistant.reply(message);
+                log.info("AntiGaspi > {}", reponse);
+                out.println("AntiGaspi > " + reponse);
             } catch (ChatException e) {
+                log.warn("Erreur du chat : {}", e.getMessage());
                 out.println(e.getMessage());
             }
         }

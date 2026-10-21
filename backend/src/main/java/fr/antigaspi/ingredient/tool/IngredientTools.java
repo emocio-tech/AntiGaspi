@@ -4,8 +4,6 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Component;
@@ -23,8 +21,6 @@ import fr.antigaspi.ingredient.service.IngredientService;
 @Component
 public class IngredientTools {
 
-    private static final Logger log = LoggerFactory.getLogger(IngredientTools.class);
-
     private final IngredientService ingredientService;
 
     public IngredientTools(IngredientService ingredientService) {
@@ -41,11 +37,7 @@ public class IngredientTools {
             @ToolParam(required = false, description = "Uniquement les aliments de cette catégorie") Category categorie,
             @ToolParam(required = false, description = "Uniquement les aliments périmés ou à consommer sous ce nombre de jours (0 = périmés ou à consommer aujourd'hui)") Integer joursMax,
             @ToolParam(required = false, description = "Nombre maximal d'aliments renvoyés, les plus urgents d'abord") Integer limite) {
-        List<Aliment> aliments = ingredientService.search(categorie, joursMax, limite).stream()
-                .map(IngredientTools::toAliment).toList();
-        log.info("Tool listerIngredients (catégorie={}, joursMax={}, limite={}) : {} aliment(s)", categorie, joursMax,
-                limite, aliments.size());
-        return aliments;
+        return ingredientService.search(categorie, joursMax, limite).stream().map(IngredientTools::toAliment).toList();
     }
 
     private static Aliment toAliment(IngredientView view) {

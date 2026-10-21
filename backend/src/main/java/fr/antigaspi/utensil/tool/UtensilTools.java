@@ -2,8 +2,6 @@ package fr.antigaspi.utensil.tool;
 
 import java.util.List;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Component;
@@ -17,8 +15,6 @@ import fr.antigaspi.utensil.service.UtensilService;
 @Component
 public class UtensilTools {
 
-    private static final Logger log = LoggerFactory.getLogger(UtensilTools.class);
-
     private final UtensilService utensilService;
 
     public UtensilTools(UtensilService utensilService) {
@@ -29,9 +25,7 @@ public class UtensilTools {
             Liste les ustensiles de cuisine disponibles chez l'utilisateur, par ordre alphabétique, avec leur \
             identifiant. À appeler avant de supprimer un ustensile, pour retrouver son identifiant.""")
     public List<Utensil> listUtensils() {
-        List<Utensil> utensils = utensilService.listAll();
-        log.info("Tool listUtensils : {} ustensile(s)", utensils.size());
-        return utensils;
+        return utensilService.listAll();
     }
 
     @Tool(name = "addUtensil", description = """
@@ -40,10 +34,8 @@ public class UtensilTools {
     public String addUtensil(@ToolParam(description = "Nom de l'ustensile, par exemple Mixeur plongeant") String name) {
         try {
             Utensil added = utensilService.add(name);
-            log.info("Tool addUtensil : {} ajouté (id {})", added.name(), added.id());
             return "Ustensile ajouté : %s (identifiant %d)".formatted(added.name(), added.id());
         } catch (IllegalArgumentException e) {
-            log.info("Tool addUtensil refusé : {}", e.getMessage());
             return e.getMessage();
         }
     }
@@ -56,10 +48,8 @@ public class UtensilTools {
             @ToolParam(description = "Identifiant de l'ustensile, tel que renvoyé par listUtensils") long id) {
         try {
             Utensil removed = utensilService.remove(id);
-            log.info("Tool removeUtensil : {} supprimé (id {})", removed.name(), removed.id());
             return "Ustensile supprimé : %s (identifiant %d)".formatted(removed.name(), removed.id());
         } catch (IllegalArgumentException e) {
-            log.info("Tool removeUtensil refusé : {}", e.getMessage());
             return e.getMessage();
         }
     }
