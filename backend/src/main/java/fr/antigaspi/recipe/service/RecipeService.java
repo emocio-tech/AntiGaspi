@@ -66,20 +66,8 @@ public class RecipeService {
         }
         List<IngredientView> others = inventory.stream().filter(view -> !priority.contains(view)).toList();
         List<Utensil> utensils = utensilService.listAll();
-        Recipe recipe = recipeGenerator.generate(
-                new RecipeContext(priority, others, utensils, profileService.getProfile(), servings, maxMinutes));
-        return check(recipe, inventory, utensils);
-    }
-
-    /**
-     * Applique le garde-fou à une recette rédigée ailleurs (par exemple par le LLM du chat), en la comparant à
-     * l'inventaire complet et aux ustensiles disponibles.
-     */
-    public GeneratedRecipe check(Recipe recipe) {
-        return check(recipe, ingredientService.listByUrgency(), utensilService.listAll());
-    }
-
-    private GeneratedRecipe check(Recipe recipe, List<IngredientView> inventory, List<Utensil> utensils) {
+        Recipe recipe = recipeGenerator.generate(new RecipeContext(priority, others, utensils,
+                profileService.getProfile(), servings, maxMinutes, effectiveRequest.instructions()));
         return recipeChecker.check(recipe, inventory.stream().map(IngredientView::ingredient).toList(), utensils);
     }
 

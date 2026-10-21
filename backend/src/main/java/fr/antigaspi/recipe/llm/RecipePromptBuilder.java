@@ -2,7 +2,11 @@ package fr.antigaspi.recipe.llm;
 
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
+
+import fr.antigaspi.common.Resources;
 
 import fr.antigaspi.ingredient.model.Ingredient;
 import fr.antigaspi.ingredient.model.IngredientView;
@@ -11,22 +15,22 @@ import fr.antigaspi.utensil.model.Utensil;
 
 /**
  * Construit les prompts envoyés au LLM : le prompt système (rôle et règles, dans
- * {@code resources/prompts/recipe-system.md}, lu par {@link RecipeGuidelines}) et le prompt utilisateur (aliments,
- * ustensiles, préférences, contraintes).
+ * {@code resources/prompts/recipe-system.md}) et le prompt utilisateur (aliments, ustensiles, préférences,
+ * contraintes).
  * <p>
  * Pas d'accolades dans les prompts : Spring AI les interpréterait comme des variables de template.
  */
 @Component
 public class RecipePromptBuilder {
 
-    private final RecipeGuidelines guidelines;
+    private final String systemPrompt;
 
-    public RecipePromptBuilder(RecipeGuidelines guidelines) {
-        this.guidelines = guidelines;
+    public RecipePromptBuilder(@Value("classpath:prompts/recipe-system.md") Resource systemPrompt) {
+        this.systemPrompt = Resources.readText(systemPrompt);
     }
 
     public String systemPrompt() {
-        return guidelines.systemPrompt();
+        return systemPrompt;
     }
 
     public String userPrompt(RecipeContext context) {
@@ -34,6 +38,10 @@ public class RecipePromptBuilder {
         prompt.append("Nombre de personnes : ").append(context.servings()).append('\n');
         prompt.append("Temps maximal : ")
                 .append(context.maxMinutes() == null ? "aucune contrainte" : context.maxMinutes() + " minutes")
+                .append('\n');
+        prompt.append("Demande de l'utilisateur : ")
+                .append(context.instructions() == null || context.instructions().isBlank() ? "aucune"
+                        : context.instructions().strip())
                 .append("\n\n");
 
         prompt.append(

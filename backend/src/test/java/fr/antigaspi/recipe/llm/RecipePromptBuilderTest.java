@@ -3,9 +3,11 @@ package fr.antigaspi.recipe.llm;
 import static fr.antigaspi.recipe.RecipeFixtures.view;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.ClassPathResource;
 
 import fr.antigaspi.ingredient.model.Unit;
@@ -15,17 +17,18 @@ import fr.antigaspi.utensil.model.Utensil;
 
 class RecipePromptBuilderTest {
 
-    private static final RecipeGuidelines GUIDELINES = new RecipeGuidelines(
+    private final RecipePromptBuilder builder = new RecipePromptBuilder(
             new ClassPathResource("prompts/recipe-system.md"));
-
-    private final RecipePromptBuilder builder = new RecipePromptBuilder(GUIDELINES);
 
     private static final UserProfile PROFILE = new UserProfile(List.of("Végétarien le midi"));
     private static final List<Utensil> UTENSILS = List.of(new Utensil(1L, "Four"), new Utensil(2L, "Poêle"));
 
     @Test
-    void systemPrompt_estLeFichierEntierDesConsignes() {
-        assertThat(builder.systemPrompt()).isEqualTo(GUIDELINES.systemPrompt());
+    void systemPrompt_estLuDepuisLaRessourceSansEspacesAutour() {
+        RecipePromptBuilder fromText = new RecipePromptBuilder(
+                new ByteArrayResource("\n  Tu es un chef.\n".getBytes(StandardCharsets.UTF_8)));
+
+        assertThat(fromText.systemPrompt()).isEqualTo("Tu es un chef.");
     }
 
     @Test
@@ -42,7 +45,7 @@ class RecipePromptBuilderTest {
         RecipeContext context = new RecipeContext(
                 List.of(view(1, "Yaourt", "2", Unit.PIECE, -1, false), view(2, "Poulet", "400", Unit.G, 0, false),
                         view(3, "Courgettes", "2.50", Unit.KG, 2, false), view(4, "Pommes", "6", Unit.PIECE, 3, true)),
-                List.of(), UTENSILS, PROFILE, 2, null);
+                List.of(), UTENSILS, PROFILE, 2, null, null);
 
         String prompt = builder.userPrompt(context);
 
@@ -57,7 +60,7 @@ class RecipePromptBuilderTest {
     @Test
     void userPrompt_contientUstensilesPreferencesPortionsEtTemps() {
         RecipeContext context = new RecipeContext(List.of(view(1, "Tomates", "3", Unit.PIECE, 2, false)), List.of(),
-                UTENSILS, PROFILE, 4, 30);
+                UTENSILS, PROFILE, 4, 30, null);
 
         String prompt = builder.userPrompt(context);
 
@@ -68,7 +71,7 @@ class RecipePromptBuilderTest {
     @Test
     void userPrompt_sansContrainteNiUstensileNiPreference() {
         RecipeContext context = new RecipeContext(List.of(view(1, "Tomates", "3", Unit.PIECE, 2, false)), List.of(),
-                List.of(), UserProfile.empty(), 2, null);
+                List.of(), UserProfile.empty(), 2, null, null);
 
         String prompt = builder.userPrompt(context);
 
@@ -80,7 +83,7 @@ class RecipePromptBuilderTest {
     void userPrompt_separeLesAlimentsPrioritairesDuResteDeLInventaire() {
         RecipeContext context = new RecipeContext(List.of(view(2, "Poulet", "400", Unit.G, 0, false)),
                 List.of(view(10, "Riz", "1", Unit.KG, 300, false), view(14, "Oignons", "3", Unit.PIECE, 20, false)),
-                UTENSILS, PROFILE, 2, null);
+                UTENSILS, PROFILE, 2, null, null);
 
         String prompt = builder.userPrompt(context);
 
@@ -92,5 +95,21 @@ class RecipePromptBuilderTest {
         assertThat(prompt).contains("- [10] Riz : 1 kg, reste 300 jour(s)",
                 "- [14] Oignons : 3 pièce, reste 20 jour(s)");
         assertThat(prompt.indexOf("- [10] Riz")).isGreaterThan(others);
+    }
+
+    @Test
+    void userPrompt_contientLaDemandeDeLUtilisateur() {
+        RecipeContext context = new RecipeContext(List.of(view(1, "Tomates", "3", Unit.PIECE, 2, false)), List.of(),
+                UTENSILS, PROFILE, 2, null, "végétarien, plat léger");
+
+        assertThat(builder.userPrompt(context)).contains("Demande de l'utilisateur : végétarien, plat léger");
+    }
+
+    @Test
+    void userPrompt_sansDemande_leDitExplicitement() {
+        RecipeContext context = new RecipeContext(List.of(view(1, "Tomates", "3", Unit.PIECE, 2, false)), List.of(),
+                UTENSILS, PROFILE, 2, null, "  ");
+
+        assertThat(builder.userPrompt(context)).contains("Demande de l'utilisateur : aucune");
     }
 }

@@ -39,7 +39,6 @@ import fr.antigaspi.ingredient.tool.IngredientTools;
 import fr.antigaspi.profile.model.UserProfile;
 import fr.antigaspi.profile.service.ProfileService;
 import fr.antigaspi.profile.tool.ProfileTools;
-import fr.antigaspi.recipe.llm.RecipeGuidelines;
 import fr.antigaspi.recipe.service.RecipeChecker;
 import fr.antigaspi.recipe.service.RecipeProperties;
 import fr.antigaspi.recipe.service.RecipeService;
@@ -57,13 +56,7 @@ class ChatAssistantTest {
             "Courgettes", Category.LEGUMES, new BigDecimal("2.5"), Unit.KG, LocalDate.of(2026, 10, 22), NOW)),
             Clock.fixed(NOW, ZoneOffset.UTC));
 
-    private static final String GUIDELINES = """
-            Méthode, dans cet ordre : REGLES
-            Format de la recette : FORMAT
-            Avant de répondre : FIN""";
-
     private static final RecipeTools RECIPE_TOOLS = new RecipeTools(
-            new RecipeGuidelines(new ByteArrayResource(GUIDELINES.getBytes(StandardCharsets.UTF_8))),
             new RecipeService(INGREDIENTS, new UtensilService(new InMemoryUtensilRepository()),
                     mock(ProfileService.class), context -> null, new RecipeChecker(), new RecipeProperties(8, 2)));
 
@@ -176,8 +169,8 @@ class ChatAssistantTest {
         assertThat(prompt.getOptions()).isInstanceOfSatisfying(ToolCallingChatOptions.class,
                 options -> assertThat(options.getToolCallbacks())
                         .extracting(callback -> callback.getToolDefinition().name())
-                        .containsExactlyInAnyOrder("listerIngredients", "consignesRecette", "verifierRecette",
-                                "listUtensils", "addUtensil", "removeUtensil", "consulterPreferences"));
+                        .containsExactlyInAnyOrder("listerIngredients", "genererRecette", "listUtensils", "addUtensil",
+                                "removeUtensil", "consulterPreferences"));
     }
 
     @Test

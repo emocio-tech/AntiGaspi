@@ -4,7 +4,7 @@ Application web anti-gaspillage alimentaire : on suit les ingrédients de son fr
 
 **Contexte** : projet de formation réalisé à trois. Objectif : une application **minimaliste** qui intègre un **LLM** et un **serveur MCP**.
 
-> Statut : **socle backend** : inventaire statique, profil Markdown, génération de recette par LLM au niveau service, et démo de chat dont le LLM appelle des tools (inventaire, ustensiles, préférences, consignes et vérification de recette) (voir [docs/plans/2026-10-20-socle-inventaire-recette.md](docs/plans/2026-10-20-socle-inventaire-recette.md)).
+> Statut : **socle backend** : inventaire statique, profil Markdown, génération de recette par LLM au niveau service, et démo de chat dont le LLM appelle des tools (inventaire, ustensiles, préférences, génération de recette contrôlée) (voir [docs/plans/2026-10-20-socle-inventaire-recette.md](docs/plans/2026-10-20-socle-inventaire-recette.md)).
 
 ## Sommaire
 - [Fonctionnalités](#fonctionnalités)

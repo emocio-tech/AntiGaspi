@@ -17,7 +17,7 @@ fr.antigaspi
 ├── ingredient/   model/ (Ingredient, Category, Unit, Urgency, IngredientView) · repository/ · service/ · tool/ (IngredientTools : tool LLM listerIngredients)
 ├── utensil/      model/ (Utensil) · repository/ · service/ · tool/ (UtensilTools : tools LLM listUtensils, addUtensil, removeUtensil)
 ├── profile/      model/ (UserProfile) · repository/ (Markdown) · service/ · tool/ (ProfileTools : tool LLM consulterPreferences)
-├── recipe/       model/ (Recipe, RecipeIngredient, RecipeRequest, RecipeContext, GeneratedRecipe, RecipeIssue) · service/ (RecipeService, RecipeChecker : garde-fou post-LLM) · llm/ (RecipeGenerator, Spring AI, prompts, RecipeGuidelines : consignes extraites du prompt) · tool/ (RecipeTools : tools LLM consignesRecette, verifierRecette) · cli/ (démo terminal)
+├── recipe/       model/ (Recipe, RecipeIngredient, RecipeRequest, RecipeContext, GeneratedRecipe, RecipeIssue) · service/ (RecipeService, RecipeChecker : garde-fou post-LLM) · llm/ (RecipeGenerator, Spring AI, prompts) · tool/ (RecipeTools : tool LLM genererRecette, génération + garde-fou en un appel) · cli/ (démo terminal)
 ├── chat/         llm/ (ChatAssistant : ChatClient + mémoire + tous les beans ChatTools, ToolCalledEvent publié à chaque appel de tool) · cli/ (démo chat en terminal)
 ├── common/       utilitaires partagés (Resources : lecture JSON et texte ; ChatTools : marqueur des classes de tools exposées au chat)
 └── config/       configuration Spring (Clock)
@@ -35,7 +35,7 @@ fr.antigaspi
 - Une classe de test : `mvn -q test -pl backend -Dtest=Classe#methode`
 - Formatage : `mvn formatter:format` (le hook pre-commit lance `formatter:validate`)
 - Démo en terminal (aliments urgents + 10 recettes JSON + bilan des échecs, appels réels au LLM) : `mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=demo`
-- Démo chat en terminal (le LLM appelle les tools inventaire, ustensiles, préférences et recette au besoin, `quitter` pour sortir) : `mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=chat`
+- Démo chat en terminal (le LLM appelle les tools inventaire, ustensiles, préférences et génération de recette au besoin, `quitter` pour sortir) : `mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=chat`
 - Sans Java, avec Docker : `docker compose build` (compile + tests), puis `docker compose run --rm backend` (démo). Le `.env` n'est jamais copié dans l'image (`.dockerignore`).
 
 ## Conventions
