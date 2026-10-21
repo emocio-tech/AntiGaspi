@@ -17,7 +17,9 @@ import fr.antigaspi.utensil.model.Utensil;
  *            ustensiles disponibles
  * @param maxMinutes
  *            temps maximal, {@code null} si aucune contrainte
+ * @param instructions
+ *            demande de l'utilisateur en texte libre, {@code null} si aucune
  */
 public record RecipeContext(List<IngredientView> priorityIngredients, List<IngredientView> otherIngredients,
-        List<Utensil> utensils, UserProfile profile, int servings, Integer maxMinutes) {
+        List<Utensil> utensils, UserProfile profile, int servings, Integer maxMinutes, String instructions) {
 }

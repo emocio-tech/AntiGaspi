@@ -6,6 +6,8 @@ import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Component;
 
+import fr.antigaspi.common.ChatTools;
+
 import fr.antigaspi.utensil.model.Utensil;
 import fr.antigaspi.utensil.service.UtensilService;
 
@@ -13,7 +15,7 @@ import fr.antigaspi.utensil.service.UtensilService;
  * Tools Spring AI permettant au LLM de consulter et de modifier la liste des ustensiles.
  */
 @Component
-public class UtensilTools {
+public class UtensilTools implements ChatTools {
 
     private final UtensilService utensilService;
 

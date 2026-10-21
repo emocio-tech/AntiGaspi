@@ -12,7 +12,9 @@ public enum RecipeIssueType {
     /** Identifiant absent de l'inventaire : l'identifiant est retiré. */
     IDENTIFIANT_INCONNU("Identifiant inconnu"),
     /** Ingrédient listé mais cité dans aucune étape : seulement signalé. */
-    INGREDIENT_NON_UTILISE("Ingrédient non utilisé");
+    INGREDIENT_NON_UTILISE("Ingrédient non utilisé"),
+    /** Ustensile absent des ustensiles disponibles : seulement signalé. */
+    USTENSILE_INDISPONIBLE("Ustensile indisponible");
 
     private final String label;
 

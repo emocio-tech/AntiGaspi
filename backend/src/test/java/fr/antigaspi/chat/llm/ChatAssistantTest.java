@@ -36,8 +36,9 @@ import fr.antigaspi.ingredient.model.Ingredient;
 import fr.antigaspi.ingredient.model.Unit;
 import fr.antigaspi.ingredient.service.IngredientService;
 import fr.antigaspi.ingredient.tool.IngredientTools;
+import fr.antigaspi.profile.model.UserProfile;
 import fr.antigaspi.profile.service.ProfileService;
-import fr.antigaspi.recipe.llm.RecipeGuidelines;
+import fr.antigaspi.profile.tool.ProfileTools;
 import fr.antigaspi.recipe.service.RecipeChecker;
 import fr.antigaspi.recipe.service.RecipeProperties;
 import fr.antigaspi.recipe.service.RecipeService;
@@ -55,18 +56,15 @@ class ChatAssistantTest {
             "Courgettes", Category.LEGUMES, new BigDecimal("2.5"), Unit.KG, LocalDate.of(2026, 10, 22), NOW)),
             Clock.fixed(NOW, ZoneOffset.UTC));
 
-    private static final String GUIDELINES = """
-            Méthode, dans cet ordre : REGLES
-            Format de la recette : FORMAT
-            Avant de répondre : FIN""";
-
     private static final RecipeTools RECIPE_TOOLS = new RecipeTools(
-            new RecipeGuidelines(new ByteArrayResource(GUIDELINES.getBytes(StandardCharsets.UTF_8))),
             new RecipeService(INGREDIENTS, new UtensilService(new InMemoryUtensilRepository()),
                     mock(ProfileService.class), context -> null, new RecipeChecker(), new RecipeProperties(8, 2)));
 
     private static final UtensilTools UTENSIL_TOOLS = new UtensilTools(
             new UtensilService(new InMemoryUtensilRepository(new Utensil(1L, "Four"))));
+
+    private static final ProfileTools PROFILE_TOOLS = new ProfileTools(
+            new ProfileService(() -> new UserProfile(List.of("Végétarien"))));
 
     /** Prompts reçus par le faux modèle, dans l'ordre. */
     private final List<Prompt> prompts = new ArrayList<>();
@@ -96,8 +94,8 @@ class ChatAssistantTest {
                 return ToolCallingChatOptions.builder().build();
             }
         };
-        return new ChatAssistant(ChatClient.builder(chatModel), new IngredientTools(INGREDIENTS), RECIPE_TOOLS,
-                UTENSIL_TOOLS, events::add,
+        return new ChatAssistant(ChatClient.builder(chatModel),
+                List.of(new IngredientTools(INGREDIENTS), RECIPE_TOOLS, UTENSIL_TOOLS, PROFILE_TOOLS), events::add,
                 new ByteArrayResource("PROMPT SYSTEME CHAT".getBytes(StandardCharsets.UTF_8)));
     }
 
@@ -138,6 +136,23 @@ class ChatAssistantTest {
     }
 
     @Test
+    void argumentsAvecAccentsEchappes_evenementLisible() {
+        // Certains proxys renvoient les arguments avec les accents échappés (\u00e9 pour é)
+        assistantAnswering(toolCall("{\"categorie\": \"L\\u00c9GUMES\", \"joursMax\": 3}"),
+                new AssistantMessage("Les courgettes.")).reply("Quels légumes ?");
+
+        assertThat(events).containsExactly(
+                new ToolCalledEvent("listerIngredients", "{\"categorie\":\"LÉGUMES\",\"joursMax\":3}"));
+    }
+
+    @Test
+    void argumentsQuiNeSontPasDuJson_evenementAvecLeTexteBrut() {
+        assistantAnswering(toolCall("pas du json"), new AssistantMessage("Les courgettes.")).reply("Quels légumes ?");
+
+        assertThat(events).containsExactly(new ToolCalledEvent("listerIngredients", "pas du json"));
+    }
+
+    @Test
     void sansAppelDeTool_aucunEvenement() {
         assistantAnswering(new AssistantMessage("Bonjour !")).reply("Bonjour");
 
@@ -154,8 +169,8 @@ class ChatAssistantTest {
         assertThat(prompt.getOptions()).isInstanceOfSatisfying(ToolCallingChatOptions.class,
                 options -> assertThat(options.getToolCallbacks())
                         .extracting(callback -> callback.getToolDefinition().name())
-                        .containsExactlyInAnyOrder("listerIngredients", "consignesRecette", "verifierRecette",
-                                "listUtensils", "addUtensil", "removeUtensil"));
+                        .containsExactlyInAnyOrder("listerIngredients", "genererRecette", "listUtensils", "addUtensil",
+                                "removeUtensil", "consulterPreferences"));
     }
 
     @Test

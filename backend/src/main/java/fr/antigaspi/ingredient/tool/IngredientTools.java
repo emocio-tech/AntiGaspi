@@ -8,6 +8,8 @@ import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Component;
 
+import fr.antigaspi.common.ChatTools;
+
 import fr.antigaspi.ingredient.model.Category;
 import fr.antigaspi.ingredient.model.Ingredient;
 import fr.antigaspi.ingredient.model.IngredientView;
@@ -19,7 +21,7 @@ import fr.antigaspi.ingredient.service.IngredientService;
  * Le LLM reçoit la liste en JSON. Une erreur du service (filtre invalide) lui est renvoyée sous forme de message.
  */
 @Component
-public class IngredientTools {
+public class IngredientTools implements ChatTools {
 
     private final IngredientService ingredientService;
 

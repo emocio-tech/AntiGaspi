@@ -61,7 +61,7 @@ public class RecipeDemoRunner implements ApplicationRunner {
     public void run(ApplicationArguments args) {
         out.println();
         out.println("=== Aliments prioritaires envoyés au LLM (le reste de l'inventaire est fourni en complément) ===");
-        ingredientService.findMostUrgent(properties.maxIngredients()).forEach(view -> out.println(line(view)));
+        ingredientService.search(null, null, properties.maxIngredients()).forEach(view -> out.println(line(view)));
 
         Map<String, Integer> echecs = new LinkedHashMap<>();
         Map<RecipeIssueType, Integer> anomalies = new EnumMap<>(RecipeIssueType.class);

@@ -5,7 +5,7 @@ Application anti-gaspillage : inventaire d'aliments triés par urgence de pérem
 ## Stack
 - Backend : Java 21, Spring Boot 4, Spring AI 2, Maven multi-module (`pom.xml` agrégateur à la racine, module `backend/`).
 - LLM : Spring AI `ChatClient`, isolé derrière l'interface `RecipeGenerator`. Nova Lite via le proxy compatible OpenAI de la formation (starter Spring AI OpenAI ; variables `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL=nova-lite`).
-- Données : inventaire et ustensiles en fichiers JSON statiques (`backend/src/main/resources/data/`), derrière des interfaces `*Repository` qui seront implémentées en base (PostgreSQL).
+- Données : inventaire et ustensiles en fichiers JSON (`backend/src/main/resources/data/` ; les ustensiles modifiés par le chat vont dans `data/utensils.json`, gitignoré), derrière des interfaces `*Repository` qui seront implémentées en base (PostgreSQL).
 - Profil utilisateur (préférences alimentaires) : fichier Markdown `data/profil.md` (gitignoré), gabarit `data/profil.example.md`.
 - Recette : format JSON standardisé (`title`, `servings`, `preparationMinutes`, `utensils`, `ingredients`, `steps`), décrit dans `docs/format-recette.md`.
 
@@ -16,10 +16,10 @@ Découpage **par fonctionnalité**, puis par couche à l'intérieur de chaque fo
 fr.antigaspi
 ├── ingredient/   model/ (Ingredient, Category, Unit, Urgency, IngredientView) · repository/ · service/ · tool/ (IngredientTools : tool LLM listerIngredients)
 ├── utensil/      model/ (Utensil) · repository/ · service/ · tool/ (UtensilTools : tools LLM listUtensils, addUtensil, removeUtensil)
-├── profile/      model/ (UserProfile) · repository/ (Markdown) · service/
-├── recipe/       model/ (Recipe, RecipeIngredient, RecipeRequest, RecipeContext, GeneratedRecipe, RecipeIssue) · service/ (RecipeService, RecipeChecker : garde-fou post-LLM) · llm/ (RecipeGenerator, Spring AI, prompts, RecipeGuidelines : consignes extraites du prompt) · tool/ (RecipeTools : tools LLM consignesRecette, verifierRecette) · cli/ (démo terminal)
-├── chat/         llm/ (ChatAssistant : ChatClient + mémoire + tools, ToolCalledEvent publié à chaque appel de tool) · cli/ (démo chat en terminal)
-├── common/       utilitaires partagés (JsonResources)
+├── profile/      model/ (UserProfile) · repository/ (Markdown) · service/ · tool/ (ProfileTools : tool LLM consulterPreferences)
+├── recipe/       model/ (Recipe, RecipeIngredient, RecipeRequest, RecipeContext, GeneratedRecipe, RecipeIssue) · service/ (RecipeService, RecipeChecker : garde-fou post-LLM) · llm/ (RecipeGenerator, Spring AI, prompts) · tool/ (RecipeTools : tool LLM genererRecette, génération + garde-fou en un appel) · cli/ (démo terminal)
+├── chat/         llm/ (ChatAssistant : ChatClient + mémoire + tous les beans ChatTools, ToolCalledEvent publié à chaque appel de tool) · cli/ (démo chat en terminal)
+├── common/       utilitaires partagés (Resources : lecture JSON et texte ; ChatTools : marqueur des classes de tools exposées au chat)
 └── config/       configuration Spring (Clock)
 ```
 
@@ -27,7 +27,7 @@ fr.antigaspi
 - `repository/` : interface `XxxRepository` + implémentation actuelle (`JsonXxxRepository`, `MarkdownProfileRepository`) ; l'implémentation JPA viendra ici.
 - `service/` : logique métier, seul point d'entrée pour les futurs `api/` (REST) et MCP.
 - `llm/` : tout ce qui dépend du fournisseur de LLM, derrière `RecipeGenerator`.
-- `tool/` : tools Spring AI (`@Tool`) d'une fonctionnalité, appelables par le LLM ; ils délèguent au service, sans logique métier.
+- `tool/` : tools Spring AI (`@Tool`) d'une fonctionnalité, appelables par le LLM ; ils délèguent au service, sans logique métier. La classe implémente `ChatTools` pour être exposée au chat automatiquement.
 - Une nouvelle fonctionnalité suit le même schéma ; les contrôleurs REST iront dans `<fonctionnalité>/api/`. Les tests reprennent le package de la classe testée.
 
 ## Commandes
@@ -35,7 +35,7 @@ fr.antigaspi
 - Une classe de test : `mvn -q test -pl backend -Dtest=Classe#methode`
 - Formatage : `mvn formatter:format` (le hook pre-commit lance `formatter:validate`)
 - Démo en terminal (aliments urgents + 10 recettes JSON + bilan des échecs, appels réels au LLM) : `mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=demo`
-- Démo chat en terminal (le LLM appelle le tool d'inventaire au besoin, `quitter` pour sortir) : `mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=chat`
+- Démo chat en terminal (le LLM appelle les tools inventaire, ustensiles, préférences et génération de recette au besoin, `quitter` pour sortir) : `mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=chat`
 - Sans Java, avec Docker : `docker compose build` (compile + tests), puis `docker compose run --rm backend` (démo). Le `.env` n'est jamais copié dans l'image (`.dockerignore`).
 
 ## Conventions
@@ -47,7 +47,7 @@ fr.antigaspi
 
 ## Restrictions
 - Ne jamais lire ni modifier `.env` (clés API), par aucun moyen. Seul `.env.example` est lisible.
-- Ne jamais committer `.env`, une clé API ou `data/profil.md`.
+- Ne jamais committer `.env`, une clé API, `data/profil.md` ou `data/utensils.json`.
 
 ## Méthode : TDD obligatoire
 Toute feature ou correction suit le cycle Red → Green → Refactor :

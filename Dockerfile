@@ -28,9 +28,8 @@ RUN useradd --system --create-home antigaspi
 COPY --from=build /workspace/app.jar app.jar
 # Gabarit par défaut ; le dossier data/ de l'hôte est monté par-dessus par docker compose
 COPY data/profil.example.md data/
-# Ustensiles : copie inscriptible (le fichier du jar est en lecture seule, et ./data est monté en lecture seule).
-# Les modifications faites par le chat durent le temps du conteneur.
-COPY backend/src/main/resources/data/utensils.json utensils/
+# Ustensiles : fichier créé à la première modification dans /app/utensils (./data est monté en lecture seule),
+# à partir de la liste du jar. Les modifications faites par le chat durent le temps du conteneur.
 RUN chown -R antigaspi /app
 USER antigaspi
 

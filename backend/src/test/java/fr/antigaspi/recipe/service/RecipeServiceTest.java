@@ -101,19 +101,20 @@ class RecipeServiceTest {
         RecipeService service = service(ingredient(1, "Riz", 100), ingredient(2, "Tomates", 1),
                 ingredient(3, "Courgettes", 2));
 
-        service.generate(new RecipeRequest(List.of(1L, 3L), 4, 25));
+        service.generate(new RecipeRequest(List.of(1L, 3L), 4, 25, "végétarien"));
 
         assertThat(priorityNames()).containsExactly("Courgettes", "Riz");
         assertThat(otherNames()).containsExactly("Tomates");
         assertThat(receivedContext.get().servings()).isEqualTo(4);
         assertThat(receivedContext.get().maxMinutes()).isEqualTo(25);
+        assertThat(receivedContext.get().instructions()).isEqualTo("végétarien");
     }
 
     @Test
     void requeteNulleOuIdsNuls_equivautAuxPlusUrgents() {
         RecipeService service = service(ingredient(2, "Tomates", 1));
 
-        service.generate(new RecipeRequest(null, null, null));
+        service.generate(new RecipeRequest(null, null, null, null));
         assertThat(priorityNames()).containsExactly("Tomates");
         assertThat(otherNames()).isEmpty();
 
@@ -145,7 +146,7 @@ class RecipeServiceTest {
         assertThatThrownBy(() -> service().generate(RecipeRequest.mostUrgent()))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(
-                () -> service(ingredient(1, "Riz", 100)).generate(new RecipeRequest(List.of(99L), null, null)))
+                () -> service(ingredient(1, "Riz", 100)).generate(new RecipeRequest(List.of(99L), null, null, null)))
                         .isInstanceOf(IllegalArgumentException.class);
         assertThat(receivedContext.get()).isNull();
     }
@@ -154,26 +155,20 @@ class RecipeServiceTest {
     void portionsOuTempsInvalides_refusesSansAppelerLeLlm() {
         RecipeService service = service(ingredient(1, "Riz", 100));
 
-        assertThatThrownBy(() -> service.generate(new RecipeRequest(null, 0, null)))
+        assertThatThrownBy(() -> service.generate(new RecipeRequest(null, 0, null, null)))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> service.generate(new RecipeRequest(null, null, -5)))
+        assertThatThrownBy(() -> service.generate(new RecipeRequest(null, null, -5, null)))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThat(receivedContext.get()).isNull();
     }
 
     @Test
-    void check_compareAInventaireCompletEtPasSeulementAuxPrioritaires() {
-        // maxIngredients vaut 2 : le riz n'est pas prioritaire mais reste dans l'inventaire
-        RecipeService service = service(ingredient(1, "Courgettes", 1), ingredient(2, "Tomates", 2),
-                ingredient(3, "Riz", 30));
-        Recipe recipe = new Recipe("Riz sauté", 2, 20, List.of(),
-                List.of(new RecipeIngredient(3L, "Riz", BigDecimal.ONE, "pièce"),
-                        new RecipeIngredient(99L, "Oignon", BigDecimal.ONE, "pièce")),
-                List.of("Cuire le riz et l'oignon"));
+    void recetteDuLlm_controleeContreLesUstensilesDisponibles() {
+        llmAnswer.set(new Recipe("Soupe", 2, 30, List.of("Four", "Mixeur"), List.of(), List.of("Mixer")));
 
-        GeneratedRecipe checked = service.check(recipe);
+        GeneratedRecipe generated = service(ingredient(1, "Courgettes", 1)).generate(RecipeRequest.mostUrgent());
 
-        assertThat(checked.recipe().ingredients()).extracting(RecipeIngredient::ingredientId).containsExactly(3L, null);
-        assertThat(checked.issues()).extracting(RecipeIssue::type).containsExactly(RecipeIssueType.IDENTIFIANT_INCONNU);
+        assertThat(generated.issues()).extracting(RecipeIssue::type)
+                .containsExactly(RecipeIssueType.USTENSILE_INDISPONIBLE);
     }
 }

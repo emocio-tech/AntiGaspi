@@ -1,9 +1,7 @@
 package fr.antigaspi.chat.llm;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.List;
 import java.util.function.Consumer;
 
 import org.slf4j.Logger;
@@ -24,9 +22,11 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 
-import fr.antigaspi.ingredient.tool.IngredientTools;
-import fr.antigaspi.recipe.tool.RecipeTools;
-import fr.antigaspi.utensil.tool.UtensilTools;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.json.JsonMapper;
+
+import fr.antigaspi.common.ChatTools;
+import fr.antigaspi.common.Resources;
 
 /**
  * Assistant de chat anti-gaspillage : le LLM appelle les tools de l'application quand il en a besoin.
@@ -47,14 +47,15 @@ public class ChatAssistant {
 
     private final ApplicationEventPublisher eventPublisher;
 
-    public ChatAssistant(ChatClient.Builder chatClientBuilder, IngredientTools ingredientTools, RecipeTools recipeTools,
-            UtensilTools utensilTools, ApplicationEventPublisher eventPublisher,
+    public ChatAssistant(ChatClient.Builder chatClientBuilder, List<ChatTools> tools,
+            ApplicationEventPublisher eventPublisher,
             @Value("classpath:prompts/chat-system.md") Resource systemPrompt) {
         this.eventPublisher = eventPublisher;
-        ToolCallback[] observedTools = Arrays.stream(ToolCallbacks.from(ingredientTools, recipeTools, utensilTools))
+        ToolCallback[] observedTools = Arrays.stream(ToolCallbacks.from(tools.toArray()))
                 .map(tool -> (ToolCallback) new ObservedToolCallback(tool, this::notifyToolCall))
                 .toArray(ToolCallback[]::new);
-        this.chatClient = chatClientBuilder.defaultSystem(read(systemPrompt)).defaultTools((Object[]) observedTools)
+        this.chatClient = chatClientBuilder.defaultSystem(Resources.readText(systemPrompt))
+                .defaultTools((Object[]) observedTools)
                 .defaultAdvisors(MessageChatMemoryAdvisor.builder(MessageWindowChatMemory.builder().build()).build(),
                         ToolCallingAdvisor.builder().build(), new SimpleLoggerAdvisor())
                 .build();
@@ -106,15 +107,20 @@ public class ChatAssistant {
         }
 
         private ToolCalledEvent describe(String toolInput) {
-            return new ToolCalledEvent(delegate.getToolDefinition().name(), toolInput);
+            return new ToolCalledEvent(delegate.getToolDefinition().name(), readable(toolInput));
+        }
+
+        /**
+         * Arguments réécrits en JSON compact, accents en clair : certains proxys les échappent ({@code \u00e9}). Texte
+         * brut s'il ne s'agit pas de JSON.
+         */
+        private static String readable(String toolInput) {
+            try {
+                return JsonMapper.shared().writeValueAsString(JsonMapper.shared().readTree(toolInput));
+            } catch (JacksonException e) {
+                return toolInput;
+            }
         }
     }
 
-    private static String read(Resource resource) {
-        try {
-            return resource.getContentAsString(StandardCharsets.UTF_8).strip();
-        } catch (IOException e) {
-            throw new UncheckedIOException("Prompt système introuvable : " + resource.getDescription(), e);
-        }
-    }
 }

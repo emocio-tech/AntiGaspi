@@ -1,5 +1,5 @@
 # Profil de chat : lance ChatDemoRunner (conversation en terminal) puis s'arrête (pas de serveur web).
-# Les logs info de fr.antigaspi tracent les messages saisis, les réponses et chaque appel du tool par le LLM.
+# Les logs info de fr.antigaspi tracent les messages saisis, les réponses et chaque appel de tool par le LLM.
 # Ils vont uniquement dans logs/chat.log (console coupée pour ne pas polluer le chat).
 spring:
   main:

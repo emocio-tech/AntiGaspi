@@ -11,10 +11,12 @@ import java.util.List;
  *            nombre de portions ; {@code null} pour la valeur par défaut
  * @param maxMinutes
  *            temps de préparation maximal ; {@code null} pour aucune contrainte
+ * @param instructions
+ *            demande de l'utilisateur en texte libre (végétarien, plat léger…) ; {@code null} si aucune
  */
-public record RecipeRequest(List<Long> ingredientIds, Integer servings, Integer maxMinutes) {
+public record RecipeRequest(List<Long> ingredientIds, Integer servings, Integer maxMinutes, String instructions) {
 
     public static RecipeRequest mostUrgent() {
-        return new RecipeRequest(List.of(), null, null);
+        return new RecipeRequest(List.of(), null, null, null);
     }
 }

@@ -1,13 +1,12 @@
 package fr.antigaspi.recipe.llm;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
+
+import fr.antigaspi.common.Resources;
 
 import fr.antigaspi.ingredient.model.Ingredient;
 import fr.antigaspi.ingredient.model.IngredientView;
@@ -27,11 +26,7 @@ public class RecipePromptBuilder {
     private final String systemPrompt;
 
     public RecipePromptBuilder(@Value("classpath:prompts/recipe-system.md") Resource systemPrompt) {
-        try {
-            this.systemPrompt = systemPrompt.getContentAsString(StandardCharsets.UTF_8).strip();
-        } catch (IOException e) {
-            throw new UncheckedIOException("Prompt système introuvable : " + systemPrompt.getDescription(), e);
-        }
+        this.systemPrompt = Resources.readText(systemPrompt);
     }
 
     public String systemPrompt() {
@@ -43,6 +38,10 @@ public class RecipePromptBuilder {
         prompt.append("Nombre de personnes : ").append(context.servings()).append('\n');
         prompt.append("Temps maximal : ")
                 .append(context.maxMinutes() == null ? "aucune contrainte" : context.maxMinutes() + " minutes")
+                .append('\n');
+        prompt.append("Demande de l'utilisateur : ")
+                .append(context.instructions() == null || context.instructions().isBlank() ? "aucune"
+                        : context.instructions().strip())
                 .append("\n\n");
 
         prompt.append(

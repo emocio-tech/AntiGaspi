@@ -3,7 +3,6 @@ package fr.antigaspi.ingredient.service;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
-import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 
@@ -39,21 +38,6 @@ public class IngredientService {
      */
     public List<IngredientView> listByUrgency() {
         return sortedViews(repository.findAll());
-    }
-
-    /**
-     * Les {@code limit} aliments les plus urgents.
-     */
-    public List<IngredientView> findMostUrgent(int limit) {
-        return listByUrgency().stream().limit(limit).toList();
-    }
-
-    /**
-     * Les aliments dont l'identifiant est dans {@code ids}, du plus urgent au moins urgent. Les identifiants inconnus
-     * sont ignorés.
-     */
-    public List<IngredientView> findByIds(Collection<Long> ids) {
-        return sortedViews(repository.findAll().stream().filter(ingredient -> ids.contains(ingredient.id())).toList());
     }
 
     /**

@@ -17,10 +17,12 @@ import fr.antigaspi.recipe.model.Recipe;
 import fr.antigaspi.recipe.model.RecipeIngredient;
 import fr.antigaspi.recipe.model.RecipeIssue;
 import fr.antigaspi.recipe.model.RecipeIssueType;
+import fr.antigaspi.utensil.model.Utensil;
 
 /**
  * Garde-fou appliqué à la recette renvoyée par le LLM : vérifie les identifiants et les noms des ingrédients par
- * rapport à l'inventaire, et signale les ingrédients cités dans aucune étape.
+ * rapport à l'inventaire, signale les ingrédients cités dans aucune étape et les ustensiles absents des ustensiles
+ * disponibles (non contrôlés si aucun n'est renseigné : le LLM se limite alors aux ustensiles de base).
  * <p>
  * Les noms sont comparés sans casse, sans accents et sans pluriel. Un identifiant est conservé si le nom est égal à
  * celui de l'inventaire, s'il en reprend les mots (« Poulet » pour « Blancs de poulet ») ou s'il en est proche (faute
@@ -35,7 +37,7 @@ public class RecipeChecker {
     private static final Set<String> STOP_WORDS = Set.of("a", "au", "aux", "avec", "d", "de", "des", "du", "en", "et",
             "l", "la", "le", "les", "un", "une");
 
-    public GeneratedRecipe check(Recipe recipe, List<Ingredient> inventory) {
+    public GeneratedRecipe check(Recipe recipe, List<Ingredient> inventory, List<Utensil> utensils) {
         if (recipe.ingredients() == null) {
             return new GeneratedRecipe(recipe, List.of());
         }
@@ -44,6 +46,8 @@ public class RecipeChecker {
         List<RecipeIssue> issues = new ArrayList<>();
         List<RecipeIngredient> checked = recipe.ingredients().stream()
                 .map(ingredient -> checkIdentifier(ingredient, byId, issues)).toList();
+
+        checkUtensils(recipe.utensils(), utensils, issues);
 
         Set<String> stepWords = recipe.steps() == null ? Set.of()
                 : recipe.steps().stream().flatMap(step -> words(step).stream()).collect(Collectors.toSet());
@@ -80,6 +84,15 @@ public class RecipeChecker {
                 "« %s » ne correspond pas à l'identifiant %d (%s) : identifiant retiré".formatted(ingredient.name(), id,
                         stock.name())));
         return withId(ingredient, null, ingredient.name());
+    }
+
+    private static void checkUtensils(List<String> used, List<Utensil> available, List<RecipeIssue> issues) {
+        if (used == null || available.isEmpty()) {
+            return;
+        }
+        used.stream().filter(name -> available.stream().noneMatch(utensil -> sameWords(name, utensil.name())))
+                .forEach(name -> issues.add(new RecipeIssue(RecipeIssueType.USTENSILE_INDISPONIBLE,
+                        "« %s » absent des ustensiles disponibles".formatted(name))));
     }
 
     private static RecipeIngredient withId(RecipeIngredient ingredient, Long id, String name) {
