@@ -31,6 +31,7 @@ import fr.antigaspi.recipe.model.RecipeIssue;
 import fr.antigaspi.recipe.model.RecipeIssueType;
 import fr.antigaspi.recipe.model.RecipeRequest;
 import fr.antigaspi.utensil.model.Utensil;
+import fr.antigaspi.utensil.repository.InMemoryUtensilRepository;
 import fr.antigaspi.utensil.service.UtensilService;
 
 class RecipeServiceTest {
@@ -60,7 +61,8 @@ class RecipeServiceTest {
 
     private RecipeService service(Ingredient... ingredients) {
         IngredientService ingredientService = new IngredientService(() -> List.of(ingredients), CLOCK);
-        UtensilService utensilService = new UtensilService(() -> UTENSILS);
+        UtensilService utensilService = new UtensilService(
+                new InMemoryUtensilRepository(UTENSILS.toArray(Utensil[]::new)));
         return new RecipeService(ingredientService, utensilService, profileService, generator, new RecipeChecker(),
                 new RecipeProperties(2, 3));
     }

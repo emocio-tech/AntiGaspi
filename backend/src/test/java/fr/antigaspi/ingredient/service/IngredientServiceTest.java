@@ -1,6 +1,7 @@
 package fr.antigaspi.ingredient.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -116,5 +117,48 @@ class IngredientServiceTest {
 
         assertThat(names(service.findByIds(Set.of(1L, 3L, 99L)))).containsExactly("Courgette", "Riz");
         assertThat(service.findByIds(Set.of())).isEmpty();
+    }
+
+    private static IngredientService stock() {
+        return service(ingredient(1, "Riz", Category.FECULENTS, 200),
+                ingredient(2, "Yaourt", Category.PRODUITS_LAITIERS, -1),
+                ingredient(3, "Courgette", Category.LEGUMES, 2), ingredient(4, "Carottes", Category.LEGUMES, 9),
+                // Fruits sans date, ajoutés aujourd'hui : estimés à J+3
+                ingredient(5, "Pommes", Category.FRUITS, null));
+    }
+
+    @Test
+    void search_sansFiltre_renvoieToutTrieParUrgence() {
+        assertThat(names(stock().search(null, null, null))).containsExactly("Yaourt", "Courgette", "Pommes", "Carottes",
+                "Riz");
+    }
+
+    @Test
+    void search_parCategorie() {
+        assertThat(names(stock().search(Category.LEGUMES, null, null))).containsExactly("Courgette", "Carottes");
+        assertThat(stock().search(Category.SURGELES, null, null)).isEmpty();
+    }
+
+    @Test
+    void search_sousNJours_inclutLesPerimesEtLesDatesEstimees() {
+        assertThat(names(stock().search(null, 3, null))).containsExactly("Yaourt", "Courgette", "Pommes");
+        assertThat(names(stock().search(null, 0, null))).containsExactly("Yaourt");
+    }
+
+    @Test
+    void search_limiteAppliqueeApresFiltrage() {
+        assertThat(names(stock().search(null, null, 2))).containsExactly("Yaourt", "Courgette");
+        assertThat(names(stock().search(Category.LEGUMES, null, 1))).containsExactly("Courgette");
+    }
+
+    @Test
+    void search_filtresCombines() {
+        assertThat(names(stock().search(Category.LEGUMES, 7, 5))).containsExactly("Courgette");
+    }
+
+    @Test
+    void search_parametresInvalides_leveIllegalArgumentException() {
+        assertThatThrownBy(() -> stock().search(null, -1, null)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> stock().search(null, null, 0)).isInstanceOf(IllegalArgumentException.class);
     }
 }

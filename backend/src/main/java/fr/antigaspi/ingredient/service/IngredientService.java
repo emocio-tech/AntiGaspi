@@ -9,6 +9,7 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 
+import fr.antigaspi.ingredient.model.Category;
 import fr.antigaspi.ingredient.model.Ingredient;
 import fr.antigaspi.ingredient.model.IngredientView;
 import fr.antigaspi.ingredient.model.Urgency;
@@ -53,6 +54,32 @@ public class IngredientService {
      */
     public List<IngredientView> findByIds(Collection<Long> ids) {
         return sortedViews(repository.findAll().stream().filter(ingredient -> ids.contains(ingredient.id())).toList());
+    }
+
+    /**
+     * Les aliments correspondant aux filtres, du plus urgent au moins urgent. Un filtre {@code null} n'est pas
+     * appliqué.
+     *
+     * @param category
+     *            uniquement cette catégorie
+     * @param withinDays
+     *            uniquement les aliments périmés ou à consommer sous ce nombre de jours
+     * @param limit
+     *            nombre maximal d'aliments, appliqué après les autres filtres
+     *
+     * @throws IllegalArgumentException
+     *             si {@code withinDays} est négatif ou si {@code limit} n'est pas positif
+     */
+    public List<IngredientView> search(Category category, Integer withinDays, Integer limit) {
+        if (withinDays != null && withinDays < 0) {
+            throw new IllegalArgumentException("Le nombre de jours ne peut pas être négatif : " + withinDays);
+        }
+        if (limit != null && limit <= 0) {
+            throw new IllegalArgumentException("La limite doit être positive : " + limit);
+        }
+        return listByUrgency().stream().filter(view -> category == null || view.ingredient().category() == category)
+                .filter(view -> withinDays == null || view.daysLeft() <= withinDays)
+                .limit(limit == null ? Long.MAX_VALUE : limit).toList();
     }
 
     private List<IngredientView> sortedViews(List<Ingredient> ingredients) {

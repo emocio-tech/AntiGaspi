@@ -1,0 +1,10 @@
+# Profil de chat : lance ChatDemoRunner (conversation en terminal) puis s'arrête (pas de serveur web).
+# Les logs info de fr.antigaspi montrent chaque appel du tool par le LLM.
+spring:
+  main:
+    web-application-type: none
+    banner-mode: off
+logging:
+  level:
+    root: warn
+    fr.antigaspi: info
