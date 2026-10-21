@@ -1,0 +1,9 @@
+# Profil de démo : lance RecipeDemoRunner puis s'arrête (pas de serveur web).
+spring:
+  main:
+    web-application-type: none
+    banner-mode: off
+logging:
+  level:
+    root: warn
+    fr.antigaspi: info

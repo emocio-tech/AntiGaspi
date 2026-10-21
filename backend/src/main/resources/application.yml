@@ -1,0 +1,28 @@
+spring:
+  application:
+    name: antigaspi-backend
+  # Variables d'environnement lues depuis le .env de la racine (lancement depuis la racine ou depuis backend/)
+  config:
+    import:
+      - optional:file:.env[.properties]
+      - optional:file:../.env[.properties]
+  ai:
+    openai:
+      # Proxy compatible OpenAI qui sert Nova Lite (URL et clé fournies par la formation, dans .env)
+      base-url: ${LLM_BASE_URL:https://api.openai.com}
+      # Valeur factice par défaut pour que l'application démarre sans .env (l'appel échouera alors en 401)
+      api-key: ${LLM_API_KEY:non-configuree}
+      chat:
+        options:
+          model: ${LLM_MODEL:nova-lite}
+          temperature: 0.7
+          max-tokens: 1500
+
+antigaspi:
+  profile:
+    # Chemin relatif au dossier de lancement (backend/ avec Maven) ; le gabarit profil.example.md du même dossier sert de repli
+    path: ${PROFILE_PATH:../data/profil.md}
+  recipe:
+    # Nombre d'aliments les plus urgents envoyés au LLM quand aucun n'est choisi
+    max-ingredients: 8
+    default-servings: 2

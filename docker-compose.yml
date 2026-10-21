@@ -1,0 +1,18 @@
+# Lancer le backend sans Java installé :
+#   docker compose build              compile et lance les tests (première fois : quelques minutes)
+#   docker compose run --rm backend   démo : aliments urgents + recette générée, puis arrêt
+services:
+  backend:
+    build: .
+    image: antigaspi-backend
+    # Variables LLM (LLM_BASE_URL, LLM_API_KEY, LLM_MODEL) lues dans le .env de la racine
+    env_file: .env
+    environment:
+      # Dans le conteneur, le profil est dans le dossier data/ monté ci-dessous (remplace PROFILE_PATH du .env)
+      PROFILE_PATH: /app/data/profil.md
+      # Pas encore d'API REST : par défaut, on lance la démo en terminal
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-demo}
+    volumes:
+      - ./data:/app/data:ro
+    ports:
+      - "8080:8080"

@@ -1,0 +1,14 @@
+# Jamais de secrets ni de données personnelles dans l'image
+.env
+.env.*
+!.env.example
+data/profil.md
+
+# Inutile pour construire le backend
+.git
+.claude
+.idea
+.vscode
+docs
+frontend
+**/target
