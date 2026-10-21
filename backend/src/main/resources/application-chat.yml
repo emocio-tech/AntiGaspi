@@ -1,10 +1,17 @@
 # Profil de chat : lance ChatDemoRunner (conversation en terminal) puis s'arrête (pas de serveur web).
-# Les logs info de fr.antigaspi montrent chaque appel du tool par le LLM.
+# Les logs info de fr.antigaspi tracent les messages saisis, les réponses et chaque appel du tool par le LLM.
+# Ils vont uniquement dans logs/chat.log (console coupée pour ne pas polluer le chat).
 spring:
   main:
     web-application-type: none
     banner-mode: off
 logging:
+  file:
+    name: logs/chat.log
+  threshold:
+    console: "off"
   level:
     root: warn
     fr.antigaspi: info
+    # Requêtes et réponses échangées avec le LLM (messages, appels et résultats de tools), en JSON
+    org.springframework.ai.chat.client.advisor.SimpleLoggerAdvisor: debug

@@ -8,6 +8,8 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Set;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
@@ -25,6 +27,8 @@ import fr.antigaspi.chat.llm.ChatException;
 @Profile("chat")
 public class ChatDemoRunner implements ApplicationRunner {
 
+    private static final Logger log = LoggerFactory.getLogger(ChatDemoRunner.class);
+
     private static final Set<String> COMMANDES_SORTIE = Set.of("quitter", "exit");
 
     private final ChatAssistant assistant;
@@ -34,6 +38,7 @@ public class ChatDemoRunner implements ApplicationRunner {
     @Autowired
     public ChatDemoRunner(ChatAssistant assistant) {
         this(assistant, new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8)), System.out);
+        assistant.onToolCall(call -> out.println("  ⚙ " + call));
     }
 
     ChatDemoRunner(ChatAssistant assistant, BufferedReader in, PrintStream out) {
@@ -55,9 +60,13 @@ public class ChatDemoRunner implements ApplicationRunner {
             if (message.isEmpty()) {
                 continue;
             }
+            log.info("Vous > {}", message);
             try {
-                out.println("AntiGaspi > " + assistant.reply(message));
+                String reponse = assistant.reply(message);
+                log.info("AntiGaspi > {}", reponse);
+                out.println("AntiGaspi > " + reponse);
             } catch (ChatException e) {
+                log.warn("Erreur du chat : {}", e.getMessage());
                 out.println(e.getMessage());
             }
         }
