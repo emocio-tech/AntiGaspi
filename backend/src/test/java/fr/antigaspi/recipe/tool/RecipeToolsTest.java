@@ -28,6 +28,7 @@ import fr.antigaspi.profile.service.ProfileService;
 import fr.antigaspi.recipe.service.RecipeChecker;
 import fr.antigaspi.recipe.service.RecipeProperties;
 import fr.antigaspi.recipe.service.RecipeService;
+import fr.antigaspi.utensil.repository.InMemoryUtensilRepository;
 import fr.antigaspi.utensil.service.UtensilService;
 import fr.antigaspi.recipe.llm.RecipeGuidelines;
 import fr.antigaspi.recipe.tool.RecipeTools.Consigne;
@@ -55,8 +56,8 @@ class RecipeToolsTest {
             new RecipeService(
                     new IngredientService(() -> List.of(new Ingredient(3L, "Courgettes", Category.LEGUMES,
                             new BigDecimal("2.5"), Unit.KG, TODAY.plusDays(2), NOW)), Clock.fixed(NOW, ZoneOffset.UTC)),
-                    new UtensilService(List::of), mock(ProfileService.class), context -> null, new RecipeChecker(),
-                    new RecipeProperties(8, 2)));
+                    new UtensilService(new InMemoryUtensilRepository()), mock(ProfileService.class), context -> null,
+                    new RecipeChecker(), new RecipeProperties(8, 2)));
 
     private static ToolCallback callback(RecipeTools tools, String name) {
         return Arrays.stream(ToolCallbacks.from(tools)).filter(c -> c.getToolDefinition().name().equals(name))

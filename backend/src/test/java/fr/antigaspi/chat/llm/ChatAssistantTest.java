@@ -42,7 +42,10 @@ import fr.antigaspi.recipe.service.RecipeChecker;
 import fr.antigaspi.recipe.service.RecipeProperties;
 import fr.antigaspi.recipe.service.RecipeService;
 import fr.antigaspi.recipe.tool.RecipeTools;
+import fr.antigaspi.utensil.model.Utensil;
+import fr.antigaspi.utensil.repository.InMemoryUtensilRepository;
 import fr.antigaspi.utensil.service.UtensilService;
+import fr.antigaspi.utensil.tool.UtensilTools;
 
 class ChatAssistantTest {
 
@@ -59,8 +62,11 @@ class ChatAssistantTest {
 
     private static final RecipeTools RECIPE_TOOLS = new RecipeTools(
             new RecipeGuidelines(new ByteArrayResource(GUIDELINES.getBytes(StandardCharsets.UTF_8))),
-            new RecipeService(INGREDIENTS, new UtensilService(List::of), mock(ProfileService.class), context -> null,
-                    new RecipeChecker(), new RecipeProperties(8, 2)));
+            new RecipeService(INGREDIENTS, new UtensilService(new InMemoryUtensilRepository()),
+                    mock(ProfileService.class), context -> null, new RecipeChecker(), new RecipeProperties(8, 2)));
+
+    private static final UtensilTools UTENSIL_TOOLS = new UtensilTools(
+            new UtensilService(new InMemoryUtensilRepository(new Utensil(1L, "Four"))));
 
     /** Prompts reçus par le faux modèle, dans l'ordre. */
     private final List<Prompt> prompts = new ArrayList<>();
@@ -91,7 +97,8 @@ class ChatAssistantTest {
             }
         };
         return new ChatAssistant(ChatClient.builder(chatModel), new IngredientTools(INGREDIENTS), RECIPE_TOOLS,
-                events::add, new ByteArrayResource("PROMPT SYSTEME CHAT".getBytes(StandardCharsets.UTF_8)));
+                UTENSIL_TOOLS, events::add,
+                new ByteArrayResource("PROMPT SYSTEME CHAT".getBytes(StandardCharsets.UTF_8)));
     }
 
     private static AssistantMessage toolCall(String arguments) {
@@ -147,7 +154,8 @@ class ChatAssistantTest {
         assertThat(prompt.getOptions()).isInstanceOfSatisfying(ToolCallingChatOptions.class,
                 options -> assertThat(options.getToolCallbacks())
                         .extracting(callback -> callback.getToolDefinition().name())
-                        .containsExactlyInAnyOrder("listerIngredients", "consignesRecette", "verifierRecette"));
+                        .containsExactlyInAnyOrder("listerIngredients", "consignesRecette", "verifierRecette",
+                                "listUtensils", "addUtensil", "removeUtensil"));
     }
 
     @Test

@@ -26,6 +26,7 @@ import org.springframework.stereotype.Component;
 
 import fr.antigaspi.ingredient.tool.IngredientTools;
 import fr.antigaspi.recipe.tool.RecipeTools;
+import fr.antigaspi.utensil.tool.UtensilTools;
 
 /**
  * Assistant de chat anti-gaspillage : le LLM appelle les tools de l'application quand il en a besoin.
@@ -47,10 +48,10 @@ public class ChatAssistant {
     private final ApplicationEventPublisher eventPublisher;
 
     public ChatAssistant(ChatClient.Builder chatClientBuilder, IngredientTools ingredientTools, RecipeTools recipeTools,
-            ApplicationEventPublisher eventPublisher,
+            UtensilTools utensilTools, ApplicationEventPublisher eventPublisher,
             @Value("classpath:prompts/chat-system.md") Resource systemPrompt) {
         this.eventPublisher = eventPublisher;
-        ToolCallback[] observedTools = Arrays.stream(ToolCallbacks.from(ingredientTools, recipeTools))
+        ToolCallback[] observedTools = Arrays.stream(ToolCallbacks.from(ingredientTools, recipeTools, utensilTools))
                 .map(tool -> (ToolCallback) new ObservedToolCallback(tool, this::notifyToolCall))
                 .toArray(ToolCallback[]::new);
         this.chatClient = chatClientBuilder.defaultSystem(read(systemPrompt)).defaultTools((Object[]) observedTools)
