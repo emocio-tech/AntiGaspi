@@ -176,4 +176,14 @@ class RecipeServiceTest {
         assertThat(checked.recipe().ingredients()).extracting(RecipeIngredient::ingredientId).containsExactly(3L, null);
         assertThat(checked.issues()).extracting(RecipeIssue::type).containsExactly(RecipeIssueType.IDENTIFIANT_INCONNU);
     }
+
+    @Test
+    void check_compareAuxUstensilesDisponibles() {
+        Recipe recipe = new Recipe("Soupe", 2, 30, List.of("Four", "Mixeur"), List.of(), List.of("Mixer"));
+
+        GeneratedRecipe checked = service(ingredient(1, "Courgettes", 1)).check(recipe);
+
+        assertThat(checked.issues()).extracting(RecipeIssue::type)
+                .containsExactly(RecipeIssueType.USTENSILE_INDISPONIBLE);
+    }
 }

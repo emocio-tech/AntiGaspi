@@ -58,8 +58,13 @@ class SpringAiRecipeGeneratorTest {
     }
 
     private static SpringAiRecipeGenerator generator(ChatModel chatModel) {
+        String systemPrompt = """
+                PROMPT SYSTEME
+                Méthode, dans cet ordre : REGLES
+                Format de la recette : FORMAT
+                Avant de répondre : FIN""";
         RecipePromptBuilder promptBuilder = new RecipePromptBuilder(
-                new ByteArrayResource("PROMPT SYSTEME".getBytes(StandardCharsets.UTF_8)));
+                new RecipeGuidelines(new ByteArrayResource(systemPrompt.getBytes(StandardCharsets.UTF_8))));
         return new SpringAiRecipeGenerator(ChatClient.builder(chatModel), promptBuilder);
     }
 

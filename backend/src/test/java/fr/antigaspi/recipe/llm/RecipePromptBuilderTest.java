@@ -3,11 +3,9 @@ package fr.antigaspi.recipe.llm;
 import static fr.antigaspi.recipe.RecipeFixtures.view;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.ClassPathResource;
 
 import fr.antigaspi.ingredient.model.Unit;
@@ -17,21 +15,23 @@ import fr.antigaspi.utensil.model.Utensil;
 
 class RecipePromptBuilderTest {
 
-    private final RecipePromptBuilder builder = new RecipePromptBuilder(
-            new ByteArrayResource("Tu es un chef.".getBytes(StandardCharsets.UTF_8)));
+    private static final RecipeGuidelines GUIDELINES = new RecipeGuidelines(
+            new ClassPathResource("prompts/recipe-system.md"));
+
+    private final RecipePromptBuilder builder = new RecipePromptBuilder(GUIDELINES);
 
     private static final UserProfile PROFILE = new UserProfile(List.of("Végétarien le midi"));
     private static final List<Utensil> UTENSILS = List.of(new Utensil(1L, "Four"), new Utensil(2L, "Poêle"));
 
     @Test
-    void systemPrompt_estLuDepuisLaRessource() {
-        assertThat(builder.systemPrompt()).isEqualTo("Tu es un chef.");
+    void systemPrompt_estLeFichierEntierDesConsignes() {
+        assertThat(builder.systemPrompt()).isEqualTo(GUIDELINES.systemPrompt());
     }
 
     @Test
     void systemPromptDuProjet_decritLeFormatStandardiseSansAccolades() {
         // Les accolades seraient interprétées comme variables de template par Spring AI
-        String prompt = new RecipePromptBuilder(new ClassPathResource("prompts/recipe-system.md")).systemPrompt();
+        String prompt = builder.systemPrompt();
 
         assertThat(prompt).contains("anti-gaspillage", "title", "servings", "preparationMinutes", "utensils",
                 "ingredients", "steps").doesNotContain("{", "}");

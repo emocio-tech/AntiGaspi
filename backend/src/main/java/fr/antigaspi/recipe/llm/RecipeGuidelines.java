@@ -1,16 +1,14 @@
 package fr.antigaspi.recipe.llm;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
-
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 
+import fr.antigaspi.common.Resources;
+
 /**
- * Consignes de génération d'une recette, extraites du prompt système {@code prompts/recipe-system.md} : le fichier
- * reste la source unique, utilisée aussi par le prompt de génération.
+ * Consignes de génération d'une recette, lues dans {@code prompts/recipe-system.md} : le fichier entier est le prompt
+ * système de la génération ({@link RecipePromptBuilder}), et ses sections sont les consignes données au LLM du chat.
  * <p>
  * Les sections sont repérées par leurs intitulés ({@value #RULES_START}, {@value #FORMAT_START}, {@value #FORMAT_END})
  * ; si l'un manque, la construction échoue plutôt que de donner des consignes incomplètes au LLM.
@@ -22,16 +20,23 @@ public class RecipeGuidelines {
     private static final String FORMAT_START = "Format de la recette";
     private static final String FORMAT_END = "Avant de répondre";
 
+    private final String systemPrompt;
     private final String rules;
     private final String format;
 
     public RecipeGuidelines(@Value("classpath:prompts/recipe-system.md") Resource source) {
-        String text = read(source);
+        String text = Resources.readText(source);
+        this.systemPrompt = text;
         int rulesStart = indexOf(text, RULES_START, 0);
         int formatStart = indexOf(text, FORMAT_START, rulesStart);
         int formatEnd = indexOf(text, FORMAT_END, formatStart);
         this.rules = text.substring(rulesStart, formatStart).strip();
         this.format = text.substring(formatStart, formatEnd).strip();
+    }
+
+    /** Le fichier entier : rôle, règles, format et vérification finale. */
+    public String systemPrompt() {
+        return systemPrompt;
     }
 
     /** Méthode de choix des aliments et contraintes à respecter. */
@@ -58,11 +63,4 @@ public class RecipeGuidelines {
         return index;
     }
 
-    private static String read(Resource resource) {
-        try {
-            return resource.getContentAsString(StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            throw new UncheckedIOException("Prompt système introuvable : " + resource.getDescription(), e);
-        }
-    }
 }

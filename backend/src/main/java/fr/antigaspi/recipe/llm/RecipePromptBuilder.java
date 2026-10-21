@@ -1,12 +1,7 @@
 package fr.antigaspi.recipe.llm;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 
 import fr.antigaspi.ingredient.model.Ingredient;
@@ -16,26 +11,22 @@ import fr.antigaspi.utensil.model.Utensil;
 
 /**
  * Construit les prompts envoyés au LLM : le prompt système (rôle et règles, dans
- * {@code resources/prompts/recipe-system.md}) et le prompt utilisateur (aliments, ustensiles, préférences,
- * contraintes).
+ * {@code resources/prompts/recipe-system.md}, lu par {@link RecipeGuidelines}) et le prompt utilisateur (aliments,
+ * ustensiles, préférences, contraintes).
  * <p>
  * Pas d'accolades dans les prompts : Spring AI les interpréterait comme des variables de template.
  */
 @Component
 public class RecipePromptBuilder {
 
-    private final String systemPrompt;
+    private final RecipeGuidelines guidelines;
 
-    public RecipePromptBuilder(@Value("classpath:prompts/recipe-system.md") Resource systemPrompt) {
-        try {
-            this.systemPrompt = systemPrompt.getContentAsString(StandardCharsets.UTF_8).strip();
-        } catch (IOException e) {
-            throw new UncheckedIOException("Prompt système introuvable : " + systemPrompt.getDescription(), e);
-        }
+    public RecipePromptBuilder(RecipeGuidelines guidelines) {
+        this.guidelines = guidelines;
     }
 
     public String systemPrompt() {
-        return systemPrompt;
+        return guidelines.systemPrompt();
     }
 
     public String userPrompt(RecipeContext context) {

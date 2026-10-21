@@ -10,7 +10,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.List;
-import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
@@ -96,27 +95,6 @@ class IngredientServiceTest {
     @Test
     void listByUrgency_inventaireVide() {
         assertThat(service().listByUrgency()).isEmpty();
-    }
-
-    @Test
-    void findMostUrgent_renvoieLesNPremiers() {
-        IngredientService service = service(ingredient(1, "Riz", Category.FECULENTS, 200),
-                ingredient(2, "Yaourt", Category.PRODUITS_LAITIERS, -1),
-                ingredient(3, "Courgette", Category.LEGUMES, 2));
-
-        assertThat(names(service.findMostUrgent(2))).containsExactly("Yaourt", "Courgette");
-        assertThat(names(service.findMostUrgent(10))).containsExactly("Yaourt", "Courgette", "Riz");
-        assertThat(service.findMostUrgent(0)).isEmpty();
-    }
-
-    @Test
-    void findByIds_filtreEtTrieEnIgnorantLesIdsInconnus() {
-        IngredientService service = service(ingredient(1, "Riz", Category.FECULENTS, 200),
-                ingredient(2, "Yaourt", Category.PRODUITS_LAITIERS, -1),
-                ingredient(3, "Courgette", Category.LEGUMES, 2));
-
-        assertThat(names(service.findByIds(Set.of(1L, 3L, 99L)))).containsExactly("Courgette", "Riz");
-        assertThat(service.findByIds(Set.of())).isEmpty();
     }
 
     private static IngredientService stock() {

@@ -2,6 +2,8 @@ package fr.antigaspi.common;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import org.springframework.core.io.Resource;
@@ -11,11 +13,12 @@ import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * Lecture des fichiers JSON de données statiques (en attendant la base de données).
+ * Lecture des ressources de l'application : fichiers JSON de données statiques (en attendant la base de données) et
+ * prompts texte.
  */
-public final class JsonResources {
+public final class Resources {
 
-    private JsonResources() {
+    private Resources() {
     }
 
     /**
@@ -27,6 +30,20 @@ public final class JsonResources {
             return JsonMapper.shared().readValue(in, type);
         } catch (IOException | JacksonException e) {
             throw new IllegalStateException("Impossible de charger " + resource.getDescription(), e);
+        }
+    }
+
+    /**
+     * Contenu texte UTF-8, sans espaces de début et de fin.
+     *
+     * @throws UncheckedIOException
+     *             si la ressource est absente
+     */
+    public static String readText(Resource resource) {
+        try {
+            return resource.getContentAsString(StandardCharsets.UTF_8).strip();
+        } catch (IOException e) {
+            throw new UncheckedIOException("Ressource introuvable : " + resource.getDescription(), e);
         }
     }
 }

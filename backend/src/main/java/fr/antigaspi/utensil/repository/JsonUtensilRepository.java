@@ -1,5 +1,7 @@
 package fr.antigaspi.utensil.repository;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -10,7 +12,7 @@ import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Repository;
 
-import fr.antigaspi.common.JsonResources;
+import fr.antigaspi.common.Resources;
 import tools.jackson.core.JacksonException;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.json.JsonMapper;
@@ -18,8 +20,9 @@ import tools.jackson.databind.json.JsonMapper;
 import fr.antigaspi.utensil.model.Utensil;
 
 /**
- * Ustensiles disponibles chargés depuis un fichier JSON au démarrage ; les ajouts et suppressions le réécrivent. Sera
- * remplacé par une table en base.
+ * Ustensiles disponibles chargés depuis un fichier JSON au démarrage ; les ajouts et suppressions le réécrivent. Si le
+ * fichier n'existe pas encore, la liste part des données initiales et le fichier est créé à la première modification.
+ * Sera remplacé par une table en base.
  * <p>
  * Construit à partir d'une simple ressource (lecture seule, ex. fichier du classpath), les modifications ne sont
  * gardées qu'en mémoire.
@@ -40,13 +43,14 @@ public class JsonUtensilRepository implements UtensilRepository {
     }
 
     @Autowired
-    public JsonUtensilRepository(@Value("${antigaspi.utensils.path}") Path file) {
-        this(new FileSystemResource(file), file);
+    public JsonUtensilRepository(@Value("${antigaspi.utensils.path}") Path file,
+            @Value("classpath:data/utensils.json") Resource initial) {
+        this(Files.isRegularFile(file) ? new FileSystemResource(file) : initial, file);
     }
 
     private JsonUtensilRepository(Resource resource, Path file) {
         this.file = file;
-        this.utensils = List.copyOf(JsonResources.readList(resource, UTENSIL_LIST));
+        this.utensils = List.copyOf(Resources.readList(resource, UTENSIL_LIST));
     }
 
     @Override
@@ -73,8 +77,9 @@ public class JsonUtensilRepository implements UtensilRepository {
     private void replaceWith(List<Utensil> updated) {
         if (file != null) {
             try {
+                Files.createDirectories(file.toAbsolutePath().getParent());
                 JsonMapper.shared().writerWithDefaultPrettyPrinter().writeValue(file.toFile(), updated);
-            } catch (JacksonException e) {
+            } catch (IOException | JacksonException e) {
                 throw new IllegalStateException("Impossible d'écrire " + file, e);
             }
         }

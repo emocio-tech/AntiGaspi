@@ -12,6 +12,7 @@ import fr.antigaspi.recipe.model.GeneratedRecipe;
 import fr.antigaspi.recipe.model.Recipe;
 import fr.antigaspi.recipe.model.RecipeContext;
 import fr.antigaspi.recipe.model.RecipeRequest;
+import fr.antigaspi.utensil.model.Utensil;
 import fr.antigaspi.utensil.service.UtensilService;
 
 /**
@@ -64,18 +65,22 @@ public class RecipeService {
             throw new IllegalArgumentException("Aucun aliment disponible pour générer une recette");
         }
         List<IngredientView> others = inventory.stream().filter(view -> !priority.contains(view)).toList();
-        Recipe recipe = recipeGenerator.generate(new RecipeContext(priority, others, utensilService.listAll(),
-                profileService.getProfile(), servings, maxMinutes));
-        return recipeChecker.check(recipe, inventory.stream().map(IngredientView::ingredient).toList());
+        List<Utensil> utensils = utensilService.listAll();
+        Recipe recipe = recipeGenerator.generate(
+                new RecipeContext(priority, others, utensils, profileService.getProfile(), servings, maxMinutes));
+        return check(recipe, inventory, utensils);
     }
 
     /**
      * Applique le garde-fou à une recette rédigée ailleurs (par exemple par le LLM du chat), en la comparant à
-     * l'inventaire complet.
+     * l'inventaire complet et aux ustensiles disponibles.
      */
     public GeneratedRecipe check(Recipe recipe) {
-        return recipeChecker.check(recipe,
-                ingredientService.listByUrgency().stream().map(IngredientView::ingredient).toList());
+        return check(recipe, ingredientService.listByUrgency(), utensilService.listAll());
+    }
+
+    private GeneratedRecipe check(Recipe recipe, List<IngredientView> inventory, List<Utensil> utensils) {
+        return recipeChecker.check(recipe, inventory.stream().map(IngredientView::ingredient).toList(), utensils);
     }
 
     /** Les aliments choisis, ou à défaut les plus urgents ; l'inventaire est déjà trié par urgence. */

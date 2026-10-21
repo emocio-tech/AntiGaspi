@@ -14,6 +14,12 @@ class RecipeGuidelinesTest {
     private final RecipeGuidelines guidelines = new RecipeGuidelines(new ClassPathResource("prompts/recipe-system.md"));
 
     @Test
+    void systemPrompt_contientLeFichierEntier() {
+        assertThat(guidelines.systemPrompt()).startsWith("Tu es un chef").contains(guidelines.all())
+                .contains("Avant de répondre");
+    }
+
+    @Test
     void rules_contientMethodeEtContraintesSansLeFormat() {
         assertThat(guidelines.rules()).startsWith("Méthode, dans cet ordre")
                 .contains("Sécurité alimentaire", "Ustensiles", "Quantités")

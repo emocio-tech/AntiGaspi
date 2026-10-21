@@ -23,8 +23,9 @@ antigaspi:
     # Chemin relatif au dossier de lancement (backend/ avec Maven) ; le gabarit profil.example.md du même dossier sert de repli
     path: ${PROFILE_PATH:../data/profil.md}
   utensils:
-    # Fichier JSON des ustensiles, réécrit à chaque ajout ou suppression ; chemin relatif au dossier de lancement (backend/ avec Maven)
-    path: ${UTENSILS_PATH:src/main/resources/data/utensils.json}
+    # Fichier JSON des ustensiles, réécrit à chaque ajout ou suppression (gitignoré) ; chemin relatif au dossier de lancement (backend/ avec Maven).
+    # S'il n'existe pas, la liste part de classpath:data/utensils.json et le fichier est créé à la première modification.
+    path: ${UTENSILS_PATH:../data/utensils.json}
   recipe:
     # Nombre d'aliments les plus urgents envoyés au LLM quand aucun n'est choisi
     max-ingredients: 8

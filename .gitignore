@@ -47,6 +47,8 @@ coverage/
 
 # Profil utilisateur (données perso, gabarit versionné à part)
 data/profil.md
+# Ustensiles modifiés par le chat (données initiales : backend/src/main/resources/data/utensils.json)
+data/utensils.json
 
 # Maven
 target/

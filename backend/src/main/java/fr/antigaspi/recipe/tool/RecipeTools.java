@@ -6,6 +6,8 @@ import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Component;
 
+import fr.antigaspi.common.ChatTools;
+
 import fr.antigaspi.recipe.model.GeneratedRecipe;
 import fr.antigaspi.recipe.model.Recipe;
 import fr.antigaspi.recipe.model.RecipeIssue;
@@ -19,12 +21,13 @@ import fr.antigaspi.recipe.llm.RecipeGuidelines;
  * Ils délèguent à {@link RecipeGuidelines} et {@link RecipeService}, sans logique métier.
  */
 @Component
-public class RecipeTools {
+public class RecipeTools implements ChatTools {
 
     private static final String LIMITES = """
             Cette vérification ne contrôle que les identifiants et les noms des ingrédients par rapport à l'inventaire, \
-            et les ingrédients cités dans aucune étape. Elle ne contrôle ni les quantités, ni les ustensiles, \
-            ni la sécurité alimentaire, ni le nombre de viandes ou poissons : respecte toi-même les règles.""";
+            les ingrédients cités dans aucune étape et les ustensiles absents des ustensiles disponibles. \
+            Elle ne contrôle ni les quantités, ni les préférences alimentaires, ni la sécurité alimentaire, \
+            ni le nombre de viandes ou poissons : respecte toi-même les règles.""";
 
     private final RecipeGuidelines guidelines;
     private final RecipeService recipeService;
@@ -49,7 +52,7 @@ public class RecipeTools {
 
     @Tool(name = "verifierRecette", description = """
             Garde-fou à appeler une fois la recette rédigée, au format standardisé : compare ses ingrédients à \
-            l'inventaire complet, corrige les noms et retire les identifiants incohérents. \
+            l'inventaire complet, corrige les noms, retire les identifiants incohérents et signale les ustensiles indisponibles. \
             Renvoie la recette corrigée, à utiliser pour la réponse finale, et les anomalies détectées.""")
     public Verification verifierRecette(
             @ToolParam(description = "Recette rédigée, au format standardisé") Recipe recette) {

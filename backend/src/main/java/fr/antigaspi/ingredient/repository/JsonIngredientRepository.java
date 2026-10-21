@@ -11,7 +11,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Repository;
 
-import fr.antigaspi.common.JsonResources;
+import fr.antigaspi.common.Resources;
 
 import tools.jackson.core.type.TypeReference;
 
@@ -36,7 +36,7 @@ public class JsonIngredientRepository implements IngredientRepository {
     private final List<Ingredient> ingredients;
 
     public JsonIngredientRepository(@Value("classpath:data/ingredients.json") Resource resource, Clock clock) {
-        this.ingredients = JsonResources.readList(resource, new TypeReference<List<Entry>>() {
+        this.ingredients = Resources.readList(resource, new TypeReference<List<Entry>>() {
         }).stream().map(entry -> toIngredient(entry, clock)).toList();
     }
 

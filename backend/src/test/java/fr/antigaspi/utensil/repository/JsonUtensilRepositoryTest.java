@@ -13,10 +13,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.Resource;
 
 import fr.antigaspi.utensil.model.Utensil;
 
 class JsonUtensilRepositoryTest {
+
+    /** Données initiales vides : à n'utiliser que si le fichier existe déjà. */
+    private static final Resource NO_INITIAL = new ByteArrayResource(new byte[0]);
 
     private static JsonUtensilRepository repository(String json) {
         return new JsonUtensilRepository(new ByteArrayResource(json.getBytes(StandardCharsets.UTF_8)));
@@ -46,10 +50,10 @@ class JsonUtensilRepositoryTest {
                 [{"id": 1, "name": "Four"}, {"id": 4, "name": "Poêle"}]
                 """);
 
-        Utensil saved = new JsonUtensilRepository(file).save("Mixeur");
+        Utensil saved = new JsonUtensilRepository(file, NO_INITIAL).save("Mixeur");
 
         assertThat(saved).isEqualTo(new Utensil(5L, "Mixeur"));
-        assertThat(new JsonUtensilRepository(file).findAll()).containsExactly(new Utensil(1L, "Four"),
+        assertThat(new JsonUtensilRepository(file, NO_INITIAL).findAll()).containsExactly(new Utensil(1L, "Four"),
                 new Utensil(4L, "Poêle"), new Utensil(5L, "Mixeur"));
     }
 
@@ -57,7 +61,7 @@ class JsonUtensilRepositoryTest {
     void save_listeVide_commenceAuId1(@TempDir Path dir) throws IOException {
         Path file = file(dir, "[]");
 
-        assertThat(new JsonUtensilRepository(file).save("Four")).isEqualTo(new Utensil(1L, "Four"));
+        assertThat(new JsonUtensilRepository(file, NO_INITIAL).save("Four")).isEqualTo(new Utensil(1L, "Four"));
     }
 
     @Test
@@ -66,15 +70,36 @@ class JsonUtensilRepositoryTest {
                 [{"id": 1, "name": "Four"}, {"id": 2, "name": "Poêle"}]
                 """);
 
-        new JsonUtensilRepository(file).deleteById(1L);
+        new JsonUtensilRepository(file, NO_INITIAL).deleteById(1L);
 
-        assertThat(new JsonUtensilRepository(file).findAll()).containsExactly(new Utensil(2L, "Poêle"));
+        assertThat(new JsonUtensilRepository(file, NO_INITIAL).findAll()).containsExactly(new Utensil(2L, "Poêle"));
     }
 
     @Test
-    void fichierAbsent_echoueAuChargement(@TempDir Path dir) {
-        assertThatThrownBy(() -> new JsonUtensilRepository(dir.resolve("absent.json")))
-                .isInstanceOf(IllegalStateException.class);
+    void fichierAbsent_partDesDonneesInitialesEtCreeLeFichierALaPremiereModification(@TempDir Path dir) {
+        Path file = dir.resolve("sous-dossier/absent.json");
+        Resource initial = new ByteArrayResource("""
+                [{"id": 1, "name": "Four"}]
+                """.getBytes(StandardCharsets.UTF_8));
+
+        JsonUtensilRepository repository = new JsonUtensilRepository(file, initial);
+
+        assertThat(repository.findAll()).containsExactly(new Utensil(1L, "Four"));
+        assertThat(file).doesNotExist();
+
+        repository.save("Mixeur");
+
+        assertThat(new JsonUtensilRepository(file, NO_INITIAL).findAll()).containsExactly(new Utensil(1L, "Four"),
+                new Utensil(2L, "Mixeur"));
+    }
+
+    @Test
+    void fichierPresent_prioritaireSurLesDonneesInitiales(@TempDir Path dir) throws IOException {
+        Path file = file(dir, """
+                [{"id": 7, "name": "Wok"}]
+                """);
+
+        assertThat(new JsonUtensilRepository(file, NO_INITIAL).findAll()).containsExactly(new Utensil(7L, "Wok"));
     }
 
     @Test

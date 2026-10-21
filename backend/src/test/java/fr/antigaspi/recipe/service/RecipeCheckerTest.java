@@ -16,12 +16,16 @@ import fr.antigaspi.recipe.model.Recipe;
 import fr.antigaspi.recipe.model.RecipeIngredient;
 import fr.antigaspi.recipe.model.RecipeIssue;
 import fr.antigaspi.recipe.model.RecipeIssueType;
+import fr.antigaspi.utensil.model.Utensil;
 
 class RecipeCheckerTest {
 
     private static final List<Ingredient> INVENTORY = List.of(ingredient(2, "Blancs de poulet"),
             ingredient(12, "Pois chiches"), ingredient(13, "Œufs"), ingredient(20, "Poivrons rouges"),
             ingredient(25, "Pommes de terre"));
+
+    private static final List<Utensil> UTENSILS = List.of(new Utensil(1L, "Poêle"),
+            new Utensil(2L, "Four à chaleur tournante"));
 
     private final RecipeChecker checker = new RecipeChecker();
 
@@ -39,7 +43,7 @@ class RecipeCheckerTest {
     }
 
     private GeneratedRecipe check(Recipe recipe) {
-        return checker.check(recipe, INVENTORY);
+        return checker.check(recipe, INVENTORY, UTENSILS);
     }
 
     private static List<RecipeIssueType> types(GeneratedRecipe generated) {
@@ -136,6 +140,38 @@ class RecipeCheckerTest {
         GeneratedRecipe generated = check(recipe);
 
         assertThat(generated.recipe()).isEqualTo(recipe);
+        assertThat(generated.issues()).isEmpty();
+    }
+
+    private static Recipe withUtensils(String... utensils) {
+        return new Recipe("Plat", 2, 30, List.of(utensils), List.of(item(2L, "Blancs de poulet")),
+                List.of("Cuire les blancs de poulet."));
+    }
+
+    @Test
+    void ustensileAbsentDeLaListe_signaleSansModifierLaRecette() {
+        Recipe recipe = withUtensils("Poêle", "Cocotte-minute");
+
+        GeneratedRecipe generated = check(recipe);
+
+        assertThat(generated.recipe()).isEqualTo(recipe);
+        assertThat(generated.issues()).singleElement().satisfies(issue -> {
+            assertThat(issue.type()).isEqualTo(RecipeIssueType.USTENSILE_INDISPONIBLE);
+            assertThat(issue.message()).contains("Cocotte-minute");
+        });
+    }
+
+    @Test
+    void ustensileSansAccentOuNomPartiel_reconnu() {
+        GeneratedRecipe generated = check(withUtensils("poele", "Four"));
+
+        assertThat(generated.issues()).isEmpty();
+    }
+
+    @Test
+    void aucunUstensileDisponible_ustensilesNonControles() {
+        GeneratedRecipe generated = checker.check(withUtensils("Cocotte-minute"), INVENTORY, List.of());
+
         assertThat(generated.issues()).isEmpty();
     }
 }

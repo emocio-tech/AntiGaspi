@@ -22,8 +22,9 @@ import fr.antigaspi.chat.llm.ChatException;
 import fr.antigaspi.chat.llm.ToolCalledEvent;
 
 /**
- * Démo de chat en terminal (profil Spring {@code chat}) : chaque ligne saisie est envoyée à l'assistant, qui consulte
- * l'inventaire par ses tools quand il en a besoin. {@code quitter} ou {@code exit} termine la conversation.
+ * Démo de chat en terminal (profil Spring {@code chat}) : chaque ligne saisie est envoyée à l'assistant, qui appelle
+ * ses tools (inventaire, ustensiles, préférences, recette) quand il en a besoin. {@code quitter} ou {@code exit}
+ * termine la conversation.
  */
 @Component
 @Profile("chat")
@@ -57,7 +58,7 @@ public class ChatDemoRunner implements ApplicationRunner {
     @Override
     public void run(ApplicationArguments args) {
         out.println();
-        out.println("=== Chat AntiGaspi : posez vos questions sur l'inventaire (« quitter » pour sortir) ===");
+        out.println("=== Chat AntiGaspi : inventaire, ustensiles, recettes (« quitter » pour sortir) ===");
         String line;
         while ((line = prompt()) != null) {
             String message = line.strip();
