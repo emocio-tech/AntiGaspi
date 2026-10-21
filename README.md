@@ -4,7 +4,7 @@ Application web anti-gaspillage alimentaire : on suit les ingrédients de son fr
 
 **Contexte** : projet de formation réalisé à trois. Objectif : une application **minimaliste** qui intègre un **LLM** et un **serveur MCP**.
 
-> Statut : **socle backend** : inventaire statique, profil Markdown et génération de recette par LLM au niveau service (voir [docs/plans/2026-10-20-socle-inventaire-recette.md](docs/plans/2026-10-20-socle-inventaire-recette.md)).
+> Statut : **socle backend** : inventaire statique, profil Markdown génération de recette par LLM au niveau service, et tool LLM `listerIngredients` avec une démo de chat (voir [docs/plans/2026-10-20-socle-inventaire-recette.md](docs/plans/2026-10-20-socle-inventaire-recette.md)).
 
 ## Sommaire
 - [Fonctionnalités](#fonctionnalités)
@@ -191,6 +191,7 @@ cp data/profil.example.md data/profil.md   # puis adapter les préférences
 ```bash
 mvn verify                                                        # build + tests (sans appel LLM)
 mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=demo   # démo : 10 recettes générées dans le terminal + bilan des échecs
+mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=chat   # chat : le LLM consulte l'inventaire par son tool (« quitter » pour sortir)
 ```
 
 **Sans Java, avec Docker** (seul Docker Desktop ou Docker Engine + Compose est nécessaire) :
@@ -198,6 +199,7 @@ mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=demo   # démo : 10 r
 ```bash
 docker compose build              # compile et lance les tests dans l'image (première fois : quelques minutes)
 docker compose run --rm backend   # démo : aliments urgents + 10 recettes générées + bilan, puis arrêt
+SPRING_PROFILES_ACTIVE=chat docker compose run --rm backend   # chat avec le LLM, qui consulte l'inventaire par son tool
 ```
 
 - Le `.env` est passé au conteneur au lancement (`env_file`), il n'est **jamais** copié dans l'image (`.dockerignore`).

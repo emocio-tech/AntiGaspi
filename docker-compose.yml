@@ -1,12 +1,16 @@
 # Lancer le backend sans Java installé :
 #   docker compose build              compile et lance les tests (première fois : quelques minutes)
 #   docker compose run --rm backend   démo : aliments urgents + recette générée, puis arrêt
+#   SPRING_PROFILES_ACTIVE=chat docker compose run --rm backend   chat en terminal avec le LLM
 services:
   backend:
     build: .
     image: antigaspi-backend
     # Variables LLM (LLM_BASE_URL, LLM_API_KEY, LLM_MODEL) lues dans le .env de la racine
     env_file: .env
+    # Terminal interactif pour la démo chat (saisie au clavier)
+    stdin_open: true
+    tty: true
     environment:
       # Dans le conteneur, le profil est dans le dossier data/ monté ci-dessous (remplace PROFILE_PATH du .env)
       PROFILE_PATH: /app/data/profil.md
