@@ -4,7 +4,7 @@ Application web anti-gaspillage alimentaire : on suit les ingrédients de son fr
 
 **Contexte** : projet de formation réalisé à trois. Objectif : une application **minimaliste** qui intègre un **LLM** et un **serveur MCP**.
 
-> Statut : **socle backend** : inventaire statique, profil Markdown, génération de recette par LLM au niveau service, et démo de chat dont le LLM appelle des tools (inventaire, ustensiles, préférences, génération de recette contrôlée) (voir [docs/plans/2026-10-20-socle-inventaire-recette.md](docs/plans/2026-10-20-socle-inventaire-recette.md)).
+> Statut : **socle backend** : inventaire statique, profil Markdown, génération de recette par LLM au niveau service, et démo de chat dont le LLM appelle des tools (inventaire, ustensiles, préférences, génération de recette contrôlée), et serveur MCP (Streamable HTTP, tool `listerIngredients`) (voir [docs/plans/2026-10-20-socle-inventaire-recette.md](docs/plans/2026-10-20-socle-inventaire-recette.md)).
 
 ## Sommaire
 - [Fonctionnalités](#fonctionnalités)
@@ -80,6 +80,17 @@ Chaque utilisateur a un fichier Markdown de profil (préférences alimentaires, 
 
 ### 5. Serveur MCP
 Un serveur [MCP (Model Context Protocol)](https://modelcontextprotocol.io) intégré au backend expose les fonctionnalités de l'application à un assistant compatible (Claude Desktop, Claude Code…). Il réutilise les mêmes services métier que l'API REST.
+
+**État actuel** : le serveur MCP est servi en Streamable HTTP sur `/mcp`, avec le profil Spring `mcp`. Il expose uniquement le tool `listerIngredients` (inventaire trié par urgence ; filtres facultatifs `categorie`, `joursMax`, `limite`). Il écoute sur `127.0.0.1` seulement, sans authentification, et s'utilise hors conteneur :
+
+```
+mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=mcp
+claude mcp add --transport http antigaspi http://127.0.0.1:8080/mcp
+```
+
+Sans authentification, tout processus local peut lire l'inventaire. Les chemins `PROFILE_PATH` et `UTENSILS_PATH` doivent être relatifs ou écrits avec des `/` (pas de chemin Windows absolu avec antislashs).
+
+Les autres tools ci-dessous sont la cible. Leurs noms sont provisoires et seront alignés sur ceux des tools du chat (français, camelCase : `listerIngredients`, `genererRecette`…) ; `list_ingredients` correspond à `listerIngredients`, déjà exposé.
 
 Tools proposés :
 
@@ -192,6 +203,7 @@ cp data/profil.example.md data/profil.md   # puis adapter les préférences
 mvn verify                                                        # build + tests (sans appel LLM)
 mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=demo   # démo : 10 recettes générées dans le terminal + bilan des échecs
 mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=chat   # chat : le LLM appelle ses tools au besoin (« quitter » pour sortir)
+mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=mcp    # serveur MCP sur 127.0.0.1:8080/mcp (tool listerIngredients)
 ```
 
 **Sans Java, avec Docker** (seul Docker Desktop ou Docker Engine + Compose est nécessaire) :
@@ -242,7 +254,7 @@ Toutes les variables sont décrites dans [.env.example](.env.example) : fourniss
 - [ ] Faut-il garder un historique ou des favoris de recettes ?
 - [ ] Quotas et coût du proxy Nova Lite ; partage de la clé à trois.
 - [ ] Usage local uniquement, ou hébergement ?
-- [ ] Sécurité du serveur MCP (accès local seulement ? jeton ?).
+- [ ] Sécurité du serveur MCP : accès local seulement (`127.0.0.1`, sans authentification) retenu pour l'instant ; jeton à étudier si hébergement.
 - [ ] Écritures concurrentes du profil `.md` (interface + MCP en même temps).
 - [x] Stratégie de tests : TDD, tests unitaires avec LLM simulé ; vérification en réel avec la démo terminal.
 

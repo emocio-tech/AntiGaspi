@@ -5,6 +5,7 @@ Application anti-gaspillage : inventaire d'aliments triés par urgence de pérem
 ## Stack
 - Backend : Java 21, Spring Boot 4, Spring AI 2, Maven multi-module (`pom.xml` agrégateur à la racine, module `backend/`).
 - LLM : Spring AI `ChatClient`, isolé derrière l'interface `RecipeGenerator`. Nova Lite via le proxy compatible OpenAI de la formation (starter Spring AI OpenAI ; variables `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL=nova-lite`).
+- MCP : Spring AI MCP Server (starter webmvc, Streamable HTTP), actif uniquement avec le profil `mcp`.
 - Données : inventaire et ustensiles en fichiers JSON (`backend/src/main/resources/data/` ; les ustensiles modifiés par le chat vont dans `data/utensils.json`, gitignoré), derrière des interfaces `*Repository` qui seront implémentées en base (PostgreSQL).
 - Profil utilisateur (préférences alimentaires) : fichier Markdown `data/profil.md` (gitignoré), gabarit `data/profil.example.md`.
 - Recette : format JSON standardisé (`title`, `servings`, `preparationMinutes`, `utensils`, `ingredients`, `steps`), décrit dans `docs/format-recette.md`.
@@ -14,7 +15,7 @@ Découpage **par fonctionnalité**, puis par couche à l'intérieur de chaque fo
 
 ```
 fr.antigaspi
-├── ingredient/   model/ (Ingredient, Category, Unit, Urgency, IngredientView) · repository/ · service/ · tool/ (IngredientTools : tool LLM listerIngredients)
+├── ingredient/   model/ (Ingredient, Category, Unit, Urgency, IngredientView) · repository/ · service/ · tool/ (IngredientTools : tool LLM listerIngredients · IngredientMcpConfig : expose ce seul tool au serveur MCP, profil `mcp`)
 ├── utensil/      model/ (Utensil) · repository/ · service/ · tool/ (UtensilTools : tools LLM listUtensils, addUtensil, removeUtensil)
 ├── profile/      model/ (UserProfile) · repository/ (Markdown) · service/ · tool/ (ProfileTools : tool LLM consulterPreferences)
 ├── recipe/       model/ (Recipe, RecipeIngredient, RecipeRequest, RecipeContext, GeneratedRecipe, RecipeIssue) · service/ (RecipeService, RecipeChecker : garde-fou post-LLM) · llm/ (RecipeGenerator, Spring AI, prompts) · tool/ (RecipeTools : tool LLM genererRecette, génération + garde-fou en un appel) · cli/ (démo terminal)
@@ -36,6 +37,9 @@ fr.antigaspi
 - Formatage : `mvn formatter:format` (le hook pre-commit lance `formatter:validate`)
 - Démo en terminal (aliments urgents + 10 recettes JSON + bilan des échecs, appels réels au LLM) : `mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=demo`
 - Démo chat en terminal (le LLM appelle les tools inventaire, ustensiles, préférences et génération de recette au besoin, `quitter` pour sortir) : `mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=chat`
+- Serveur MCP Streamable HTTP (tool `listerIngredients` seul, sans authentification, hors conteneur) : `mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=mcp`, puis `claude mcp add --transport http antigaspi http://127.0.0.1:8080/mcp`.
+  - Il écoute sur `127.0.0.1`, port 8080 par défaut. Ne pas combiner `mcp` avec `demo` ou `chat` : ces profils coupent le serveur web (`web-application-type: none`).
+  - Le serveur MCP est désactivé par défaut (`spring.ai.mcp.server.enabled: false` dans `application.yml`) ; `application-mcp.yml` le réactive et fixe `protocol`, `name`, `version` et `server.address`.
 - Sans Java, avec Docker : `docker compose build` (compile + tests), puis `docker compose run --rm backend` (démo). Le `.env` n'est jamais copié dans l'image (`.dockerignore`).
 
 ## Conventions

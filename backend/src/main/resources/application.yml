@@ -7,6 +7,10 @@ spring:
       - optional:file:.env[.properties]
       - optional:file:../.env[.properties]
   ai:
+    mcp:
+      server:
+        # Serveur MCP inactif par défaut, activé par le profil mcp
+        enabled: false
     openai:
       # Proxy compatible OpenAI qui sert Nova Lite (URL et clé fournies par la formation, dans .env)
       base-url: ${LLM_BASE_URL:https://api.openai.com}
