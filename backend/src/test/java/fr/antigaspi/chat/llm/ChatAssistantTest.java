@@ -35,6 +35,10 @@ import fr.antigaspi.ingredient.model.Ingredient;
 import fr.antigaspi.ingredient.model.Unit;
 import fr.antigaspi.ingredient.service.IngredientService;
 import fr.antigaspi.ingredient.tool.IngredientTools;
+import fr.antigaspi.utensil.model.Utensil;
+import fr.antigaspi.utensil.repository.InMemoryUtensilRepository;
+import fr.antigaspi.utensil.service.UtensilService;
+import fr.antigaspi.utensil.tool.UtensilTools;
 
 class ChatAssistantTest {
 
@@ -44,6 +48,9 @@ class ChatAssistantTest {
             () -> List.of(new Ingredient(3L, "Courgettes", Category.LEGUMES, new BigDecimal("2.5"), Unit.KG,
                     LocalDate.of(2026, 10, 22), NOW)),
             Clock.fixed(NOW, ZoneOffset.UTC)));
+
+    private static final UtensilTools UTENSIL_TOOLS = new UtensilTools(
+            new UtensilService(new InMemoryUtensilRepository(new Utensil(1L, "Four"))));
 
     /** Prompts reçus par le faux modèle, dans l'ordre. */
     private final List<Prompt> prompts = new ArrayList<>();
@@ -70,7 +77,7 @@ class ChatAssistantTest {
                 return ToolCallingChatOptions.builder().build();
             }
         };
-        return new ChatAssistant(ChatClient.builder(chatModel), TOOLS,
+        return new ChatAssistant(ChatClient.builder(chatModel), TOOLS, UTENSIL_TOOLS,
                 new ByteArrayResource("PROMPT SYSTEME CHAT".getBytes(StandardCharsets.UTF_8)));
     }
 
@@ -112,7 +119,7 @@ class ChatAssistantTest {
         assertThat(prompt.getOptions()).isInstanceOfSatisfying(ToolCallingChatOptions.class,
                 options -> assertThat(options.getToolCallbacks())
                         .extracting(callback -> callback.getToolDefinition().name())
-                        .containsExactly("listerIngredients"));
+                        .containsExactlyInAnyOrder("listerIngredients", "listUtensils", "addUtensil", "removeUtensil"));
     }
 
     @Test
