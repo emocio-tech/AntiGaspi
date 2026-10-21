@@ -69,6 +69,15 @@ public class RecipeService {
         return recipeChecker.check(recipe, inventory.stream().map(IngredientView::ingredient).toList());
     }
 
+    /**
+     * Applique le garde-fou à une recette rédigée ailleurs (par exemple par le LLM du chat), en la comparant à
+     * l'inventaire complet.
+     */
+    public GeneratedRecipe check(Recipe recipe) {
+        return recipeChecker.check(recipe,
+                ingredientService.listByUrgency().stream().map(IngredientView::ingredient).toList());
+    }
+
     /** Les aliments choisis, ou à défaut les plus urgents ; l'inventaire est déjà trié par urgence. */
     private List<IngredientView> selectPriority(List<IngredientView> inventory, List<Long> ids) {
         if (ids == null || ids.isEmpty()) {

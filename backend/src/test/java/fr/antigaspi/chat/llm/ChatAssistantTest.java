@@ -2,6 +2,7 @@ package fr.antigaspi.chat.llm;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
@@ -35,18 +36,37 @@ import fr.antigaspi.ingredient.model.Ingredient;
 import fr.antigaspi.ingredient.model.Unit;
 import fr.antigaspi.ingredient.service.IngredientService;
 import fr.antigaspi.ingredient.tool.IngredientTools;
+import fr.antigaspi.profile.service.ProfileService;
+import fr.antigaspi.recipe.llm.RecipeGuidelines;
+import fr.antigaspi.recipe.service.RecipeChecker;
+import fr.antigaspi.recipe.service.RecipeProperties;
+import fr.antigaspi.recipe.service.RecipeService;
+import fr.antigaspi.recipe.tool.RecipeTools;
+import fr.antigaspi.utensil.service.UtensilService;
 
 class ChatAssistantTest {
 
     private static final Instant NOW = Instant.parse("2026-10-20T10:00:00Z");
 
-    private static final IngredientTools TOOLS = new IngredientTools(new IngredientService(
-            () -> List.of(new Ingredient(3L, "Courgettes", Category.LEGUMES, new BigDecimal("2.5"), Unit.KG,
-                    LocalDate.of(2026, 10, 22), NOW)),
-            Clock.fixed(NOW, ZoneOffset.UTC)));
+    private static final IngredientService INGREDIENTS = new IngredientService(() -> List.of(new Ingredient(3L,
+            "Courgettes", Category.LEGUMES, new BigDecimal("2.5"), Unit.KG, LocalDate.of(2026, 10, 22), NOW)),
+            Clock.fixed(NOW, ZoneOffset.UTC));
+
+    private static final String GUIDELINES = """
+            Méthode, dans cet ordre : REGLES
+            Format de la recette : FORMAT
+            Avant de répondre : FIN""";
+
+    private static final RecipeTools RECIPE_TOOLS = new RecipeTools(
+            new RecipeGuidelines(new ByteArrayResource(GUIDELINES.getBytes(StandardCharsets.UTF_8))),
+            new RecipeService(INGREDIENTS, new UtensilService(List::of), mock(ProfileService.class), context -> null,
+                    new RecipeChecker(), new RecipeProperties(8, 2)));
 
     /** Prompts reçus par le faux modèle, dans l'ordre. */
     private final List<Prompt> prompts = new ArrayList<>();
+
+    /** Événements publiés par l'assistant. */
+    private final List<Object> events = new ArrayList<>();
 
     /** Faux modèle qui renvoie les réponses prévues, une par appel. */
     private ChatAssistant assistantAnswering(AssistantMessage... answers) {
@@ -58,7 +78,7 @@ class ChatAssistantTest {
     }
 
     /** Faux modèle compatible tools, comme le vrai modèle : sans cela, le ChatClient n'envoie pas les tools. */
-    private static ChatAssistant assistant(Function<Prompt, ChatResponse> answer) {
+    private ChatAssistant assistant(Function<Prompt, ChatResponse> answer) {
         ChatModel chatModel = new ChatModel() {
             @Override
             public ChatResponse call(Prompt prompt) {
@@ -70,8 +90,8 @@ class ChatAssistantTest {
                 return ToolCallingChatOptions.builder().build();
             }
         };
-        return new ChatAssistant(ChatClient.builder(chatModel), TOOLS,
-                new ByteArrayResource("PROMPT SYSTEME CHAT".getBytes(StandardCharsets.UTF_8)));
+        return new ChatAssistant(ChatClient.builder(chatModel), new IngredientTools(INGREDIENTS), RECIPE_TOOLS,
+                events::add, new ByteArrayResource("PROMPT SYSTEME CHAT".getBytes(StandardCharsets.UTF_8)));
     }
 
     private static AssistantMessage toolCall(String arguments) {
@@ -103,7 +123,22 @@ class ChatAssistantTest {
     }
 
     @Test
-    void envoieLePromptSystemeEtDeclareLeTool() {
+    void appelDUnTool_publieUnEvenementAvecSonNomEtSesArguments() {
+        assistantAnswering(toolCall("{\"joursMax\":3}"), new AssistantMessage("Les courgettes."))
+                .reply("Qu'est-ce qui périme bientôt ?");
+
+        assertThat(events).containsExactly(new ToolCalledEvent("listerIngredients", "{\"joursMax\":3}"));
+    }
+
+    @Test
+    void sansAppelDeTool_aucunEvenement() {
+        assistantAnswering(new AssistantMessage("Bonjour !")).reply("Bonjour");
+
+        assertThat(events).isEmpty();
+    }
+
+    @Test
+    void envoieLePromptSystemeEtDeclareLesTools() {
         assistantAnswering(new AssistantMessage("Bonjour !")).reply("Bonjour");
 
         Prompt prompt = prompts.getFirst();
@@ -112,7 +147,7 @@ class ChatAssistantTest {
         assertThat(prompt.getOptions()).isInstanceOfSatisfying(ToolCallingChatOptions.class,
                 options -> assertThat(options.getToolCallbacks())
                         .extracting(callback -> callback.getToolDefinition().name())
-                        .containsExactly("listerIngredients"));
+                        .containsExactlyInAnyOrder("listerIngredients", "consignesRecette", "verifierRecette"));
     }
 
     @Test

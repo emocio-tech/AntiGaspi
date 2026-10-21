@@ -19,8 +19,8 @@ import org.springframework.ai.support.ToolCallbacks;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.definition.ToolDefinition;
 import org.springframework.ai.tool.metadata.ToolMetadata;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 
@@ -44,40 +44,25 @@ public class ChatAssistant {
 
     private final ChatClient chatClient;
 
-    private volatile Consumer<String> toolCallListener = call -> {
-    };
+    private final ApplicationEventPublisher eventPublisher;
 
-    @Autowired
-    public ChatAssistant(ChatClient.Builder chatClientBuilder, IngredientTools ingredientTools,
-            RecipeTools recipeTools, @Value("classpath:prompts/chat-system.md") Resource systemPrompt) {
-        this(chatClientBuilder, systemPrompt, ingredientTools, recipeTools);
-    }
-
-    /** Assistant limité à l'inventaire, sans les tools de recette. */
-    ChatAssistant(ChatClient.Builder chatClientBuilder, IngredientTools ingredientTools, Resource systemPrompt) {
-        this(chatClientBuilder, systemPrompt, ingredientTools);
-    }
-
-    private ChatAssistant(ChatClient.Builder chatClientBuilder, Resource systemPrompt, Object... tools) {
-        ToolCallback[] observedTools = Arrays.stream(ToolCallbacks.from(tools))
+    public ChatAssistant(ChatClient.Builder chatClientBuilder, IngredientTools ingredientTools, RecipeTools recipeTools,
+            ApplicationEventPublisher eventPublisher,
+            @Value("classpath:prompts/chat-system.md") Resource systemPrompt) {
+        this.eventPublisher = eventPublisher;
+        ToolCallback[] observedTools = Arrays.stream(ToolCallbacks.from(ingredientTools, recipeTools))
                 .map(tool -> (ToolCallback) new ObservedToolCallback(tool, this::notifyToolCall))
                 .toArray(ToolCallback[]::new);
-        this.chatClient = chatClientBuilder.defaultSystem(read(systemPrompt)).defaultToolCallbacks(observedTools)
+        this.chatClient = chatClientBuilder.defaultSystem(read(systemPrompt)).defaultTools((Object[]) observedTools)
                 .defaultAdvisors(MessageChatMemoryAdvisor.builder(MessageWindowChatMemory.builder().build()).build(),
                         ToolCallingAdvisor.builder().build(), new SimpleLoggerAdvisor())
                 .build();
     }
 
-    /**
-     * Enregistre l'écouteur prévenu à chaque appel d'un tool par le LLM, avec le nom du tool et ses arguments JSON.
-     */
-    public void onToolCall(Consumer<String> listener) {
-        this.toolCallListener = listener;
-    }
-
-    private void notifyToolCall(String call) {
-        log.info("Appel du tool {}", call);
-        toolCallListener.accept(call);
+    /** Journalise l'appel et publie un {@link ToolCalledEvent}, affiché par exemple par la démo de chat. */
+    private void notifyToolCall(ToolCalledEvent event) {
+        log.info("Appel du tool {} {}", event.name(), event.arguments());
+        eventPublisher.publishEvent(event);
     }
 
     /**
@@ -94,7 +79,8 @@ public class ChatAssistant {
     }
 
     /** Tool qui signale chaque appel avant de le déléguer au tool d'origine. */
-    private record ObservedToolCallback(ToolCallback delegate, Consumer<String> observer) implements ToolCallback {
+    private record ObservedToolCallback(ToolCallback delegate, Consumer<ToolCalledEvent> observer)
+            implements ToolCallback {
 
         @Override
         public ToolDefinition getToolDefinition() {
@@ -118,8 +104,8 @@ public class ChatAssistant {
             return delegate.call(toolInput, toolContext);
         }
 
-        private String describe(String toolInput) {
-            return delegate.getToolDefinition().name() + " " + toolInput;
+        private ToolCalledEvent describe(String toolInput) {
+            return new ToolCalledEvent(delegate.getToolDefinition().name(), toolInput);
         }
     }
 

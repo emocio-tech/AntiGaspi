@@ -17,17 +17,28 @@ import org.junit.jupiter.api.Test;
 
 import fr.antigaspi.chat.llm.ChatAssistant;
 import fr.antigaspi.chat.llm.ChatException;
+import fr.antigaspi.chat.llm.ToolCalledEvent;
 
 class ChatDemoRunnerTest {
 
     private final ByteArrayOutputStream output = new ByteArrayOutputStream();
     private final ChatAssistant assistant = mock(ChatAssistant.class);
 
-    private String run(String input) {
-        ChatDemoRunner runner = new ChatDemoRunner(assistant, new BufferedReader(new StringReader(input)),
+    private ChatDemoRunner runner(String input) {
+        return new ChatDemoRunner(assistant, new BufferedReader(new StringReader(input)),
                 new PrintStream(output, true, StandardCharsets.UTF_8));
-        runner.run(null);
+    }
+
+    private String run(String input) {
+        runner(input).run(null);
         return output.toString(StandardCharsets.UTF_8);
+    }
+
+    @Test
+    void appelDUnTool_afficheSonNomEtSesArguments() {
+        runner("").onToolCall(new ToolCalledEvent("listerIngredients", "{\"joursMax\":3}"));
+
+        assertThat(output.toString(StandardCharsets.UTF_8)).contains("⚙ listerIngredients {\"joursMax\":3}");
     }
 
     @Test

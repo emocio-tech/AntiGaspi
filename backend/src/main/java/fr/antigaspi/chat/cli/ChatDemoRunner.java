@@ -14,10 +14,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Profile;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 import fr.antigaspi.chat.llm.ChatAssistant;
 import fr.antigaspi.chat.llm.ChatException;
+import fr.antigaspi.chat.llm.ToolCalledEvent;
 
 /**
  * Démo de chat en terminal (profil Spring {@code chat}) : chaque ligne saisie est envoyée à l'assistant, qui consulte
@@ -38,13 +40,18 @@ public class ChatDemoRunner implements ApplicationRunner {
     @Autowired
     public ChatDemoRunner(ChatAssistant assistant) {
         this(assistant, new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8)), System.out);
-        assistant.onToolCall(call -> out.println("  ⚙ " + call));
     }
 
     ChatDemoRunner(ChatAssistant assistant, BufferedReader in, PrintStream out) {
         this.assistant = assistant;
         this.in = in;
         this.out = out;
+    }
+
+    /** Affiche chaque appel de tool par le LLM, pour suivre son raisonnement pendant la démo. */
+    @EventListener
+    public void onToolCall(ToolCalledEvent event) {
+        out.println("  ⚙ " + event.name() + " " + event.arguments());
     }
 
     @Override

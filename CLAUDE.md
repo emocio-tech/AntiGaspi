@@ -17,8 +17,8 @@ fr.antigaspi
 ├── ingredient/   model/ (Ingredient, Category, Unit, Urgency, IngredientView) · repository/ · service/ · tool/ (IngredientTools : tool LLM listerIngredients)
 ├── utensil/      model/ (Utensil) · repository/ · service/
 ├── profile/      model/ (UserProfile) · repository/ (Markdown) · service/
-├── recipe/       model/ (Recipe, RecipeIngredient, RecipeRequest, RecipeContext, GeneratedRecipe, RecipeIssue) · service/ (RecipeService, RecipeChecker : garde-fou post-LLM) · llm/ (RecipeGenerator, Spring AI, prompts) · cli/ (démo terminal)
-├── chat/         llm/ (ChatAssistant : ChatClient + mémoire + tools, prompt) · cli/ (démo chat en terminal)
+├── recipe/       model/ (Recipe, RecipeIngredient, RecipeRequest, RecipeContext, GeneratedRecipe, RecipeIssue) · service/ (RecipeService, RecipeChecker : garde-fou post-LLM) · llm/ (RecipeGenerator, Spring AI, prompts, RecipeGuidelines : consignes extraites du prompt) · tool/ (RecipeTools : tools LLM consignesRecette, verifierRecette) · cli/ (démo terminal)
+├── chat/         llm/ (ChatAssistant : ChatClient + mémoire + tools, ToolCalledEvent publié à chaque appel de tool) · cli/ (démo chat en terminal)
 ├── common/       utilitaires partagés (JsonResources)
 └── config/       configuration Spring (Clock)
 ```

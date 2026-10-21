@@ -1,4 +1,4 @@
-package fr.antigaspi.recipe.service;
+package fr.antigaspi.recipe.llm;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -9,11 +9,11 @@ import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 
 /**
- * Consignes de génération d'une recette, extraites du prompt système {@code prompts/recipe-system.md} : le fichier reste
- * la source unique, utilisée aussi par le prompt de génération.
+ * Consignes de génération d'une recette, extraites du prompt système {@code prompts/recipe-system.md} : le fichier
+ * reste la source unique, utilisée aussi par le prompt de génération.
  * <p>
- * Les sections sont repérées par leurs intitulés ({@value #RULES_START}, {@value #FORMAT_START},
- * {@value #FORMAT_END}) ; si l'un manque, la construction échoue plutôt que de donner des consignes incomplètes au LLM.
+ * Les sections sont repérées par leurs intitulés ({@value #RULES_START}, {@value #FORMAT_START}, {@value #FORMAT_END})
+ * ; si l'un manque, la construction échoue plutôt que de donner des consignes incomplètes au LLM.
  */
 @Component
 public class RecipeGuidelines {

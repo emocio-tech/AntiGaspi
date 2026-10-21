@@ -1,6 +1,7 @@
 package fr.antigaspi.recipe.tool;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
@@ -23,8 +24,12 @@ import fr.antigaspi.ingredient.service.IngredientService;
 import fr.antigaspi.recipe.model.Recipe;
 import fr.antigaspi.recipe.model.RecipeIngredient;
 import fr.antigaspi.recipe.model.RecipeIssueType;
+import fr.antigaspi.profile.service.ProfileService;
 import fr.antigaspi.recipe.service.RecipeChecker;
-import fr.antigaspi.recipe.service.RecipeGuidelines;
+import fr.antigaspi.recipe.service.RecipeProperties;
+import fr.antigaspi.recipe.service.RecipeService;
+import fr.antigaspi.utensil.service.UtensilService;
+import fr.antigaspi.recipe.llm.RecipeGuidelines;
 import fr.antigaspi.recipe.tool.RecipeTools.Consigne;
 import fr.antigaspi.recipe.tool.RecipeTools.Verification;
 import tools.jackson.databind.JsonNode;
@@ -46,11 +51,12 @@ class RecipeToolsTest {
             Avant de répondre : FIN""";
 
     private final RecipeTools tools = new RecipeTools(
-            new RecipeGuidelines(new ByteArrayResource(SOURCE.getBytes(StandardCharsets.UTF_8))), new RecipeChecker(),
-            new IngredientService(
-                    () -> List.of(new Ingredient(3L, "Courgettes", Category.LEGUMES, new BigDecimal("2.5"), Unit.KG,
-                            TODAY.plusDays(2), NOW)),
-                    Clock.fixed(NOW, ZoneOffset.UTC)));
+            new RecipeGuidelines(new ByteArrayResource(SOURCE.getBytes(StandardCharsets.UTF_8))),
+            new RecipeService(
+                    new IngredientService(() -> List.of(new Ingredient(3L, "Courgettes", Category.LEGUMES,
+                            new BigDecimal("2.5"), Unit.KG, TODAY.plusDays(2), NOW)), Clock.fixed(NOW, ZoneOffset.UTC)),
+                    new UtensilService(List::of), mock(ProfileService.class), context -> null, new RecipeChecker(),
+                    new RecipeProperties(8, 2)));
 
     private static ToolCallback callback(RecipeTools tools, String name) {
         return Arrays.stream(ToolCallbacks.from(tools)).filter(c -> c.getToolDefinition().name().equals(name))
@@ -65,8 +71,7 @@ class RecipeToolsTest {
 
     @Test
     void consignesRecette_renvoieLaSectionDemandee() {
-        assertThat(tools.consignesRecette(Consigne.REGLES)).contains("REGLES-A", "REGLES-B")
-                .doesNotContain("FORMAT-A");
+        assertThat(tools.consignesRecette(Consigne.REGLES)).contains("REGLES-A", "REGLES-B").doesNotContain("FORMAT-A");
         assertThat(tools.consignesRecette(Consigne.FORMAT)).contains("FORMAT-A").doesNotContain("REGLES-A");
         assertThat(tools.consignesRecette(Consigne.TOUT)).contains("REGLES-A", "FORMAT-A");
     }
@@ -102,8 +107,8 @@ class RecipeToolsTest {
     @Test
     void contratExposeAuLlm_deuxToolsEtParametres() {
         ToolCallback[] callbacks = ToolCallbacks.from(tools);
-        assertThat(callbacks).extracting(c -> c.getToolDefinition().name()).containsExactlyInAnyOrder(
-                "consignesRecette", "verifierRecette");
+        assertThat(callbacks).extracting(c -> c.getToolDefinition().name())
+                .containsExactlyInAnyOrder("consignesRecette", "verifierRecette");
 
         JsonNode consignes = schema(callback(tools, "consignesRecette"));
         assertThat(consignes.get("properties").get("consigne").get("enum").toString()).contains("REGLES", "FORMAT",

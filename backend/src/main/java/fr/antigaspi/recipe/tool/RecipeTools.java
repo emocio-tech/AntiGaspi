@@ -6,19 +6,17 @@ import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Component;
 
-import fr.antigaspi.ingredient.model.IngredientView;
-import fr.antigaspi.ingredient.service.IngredientService;
 import fr.antigaspi.recipe.model.GeneratedRecipe;
 import fr.antigaspi.recipe.model.Recipe;
 import fr.antigaspi.recipe.model.RecipeIssue;
-import fr.antigaspi.recipe.service.RecipeChecker;
-import fr.antigaspi.recipe.service.RecipeGuidelines;
+import fr.antigaspi.recipe.service.RecipeService;
+import fr.antigaspi.recipe.llm.RecipeGuidelines;
 
 /**
  * Tools Spring AI pour la rédaction d'une recette par le LLM : consignes à respecter et garde-fou sur la recette
  * rédigée.
  * <p>
- * Ils délèguent à {@link RecipeGuidelines} et {@link RecipeChecker}, sans logique métier.
+ * Ils délèguent à {@link RecipeGuidelines} et {@link RecipeService}, sans logique métier.
  */
 @Component
 public class RecipeTools {
@@ -29,13 +27,11 @@ public class RecipeTools {
             ni la sécurité alimentaire, ni le nombre de viandes ou poissons : respecte toi-même les règles.""";
 
     private final RecipeGuidelines guidelines;
-    private final RecipeChecker checker;
-    private final IngredientService ingredientService;
+    private final RecipeService recipeService;
 
-    public RecipeTools(RecipeGuidelines guidelines, RecipeChecker checker, IngredientService ingredientService) {
+    public RecipeTools(RecipeGuidelines guidelines, RecipeService recipeService) {
         this.guidelines = guidelines;
-        this.checker = checker;
-        this.ingredientService = ingredientService;
+        this.recipeService = recipeService;
     }
 
     @Tool(name = "consignesRecette", description = """
@@ -55,9 +51,9 @@ public class RecipeTools {
             Garde-fou à appeler une fois la recette rédigée, au format standardisé : compare ses ingrédients à \
             l'inventaire complet, corrige les noms et retire les identifiants incohérents. \
             Renvoie la recette corrigée, à utiliser pour la réponse finale, et les anomalies détectées.""")
-    public Verification verifierRecette(@ToolParam(description = "Recette rédigée, au format standardisé") Recipe recette) {
-        GeneratedRecipe checked = checker.check(recette,
-                ingredientService.listByUrgency().stream().map(IngredientView::ingredient).toList());
+    public Verification verifierRecette(
+            @ToolParam(description = "Recette rédigée, au format standardisé") Recipe recette) {
+        GeneratedRecipe checked = recipeService.check(recette);
         return new Verification(checked.recipe(), checked.issues(), LIMITES);
     }
 
