@@ -1,23 +1,58 @@
-# Lancer le backend sans Java installé :
-#   docker compose build              compile et lance les tests (première fois : quelques minutes)
-#   docker compose run --rm backend   démo : aliments urgents + recette générée, puis arrêt
-#   SPRING_PROFILES_ACTIVE=chat docker compose run --rm backend   chat en terminal avec le LLM
+# Application complète (base PostgreSQL, backend, frontend) :
+#   docker compose up -d --build                                 l'appli est sur http://localhost:8081
+#   docker compose up -d db                                      base seule, pour le développement local (mvn spring-boot:run)
+#   SPRING_PROFILES_ACTIVE=demo docker compose run --rm backend  démo en terminal (ou chat)
+#   docker compose down -v                                       arrête tout et remet la base à zéro
 services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: ${DB_NAME:-antigaspi}
+      POSTGRES_USER: ${DB_USER:-antigaspi}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-antigaspi}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-antigaspi} -d ${DB_NAME:-antigaspi}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "127.0.0.1:5432:5432"
+
   backend:
     build: .
     image: antigaspi-backend
-    # Variables LLM (LLM_BASE_URL, LLM_API_KEY, LLM_MODEL) lues dans le .env de la racine
-    env_file: .env
+    # Variables LLM (LLM_BASE_URL, LLM_API_KEY, LLM_MODEL) lues dans le .env de la racine, s'il existe
+    env_file:
+      - path: .env
+        required: false
     # Terminal interactif pour la démo chat (saisie au clavier)
     stdin_open: true
     tty: true
     environment:
+      DB_URL: jdbc:postgresql://db:5432/antigaspi
+      DB_USER: ${DB_USER:-antigaspi}
+      DB_PASSWORD: ${DB_PASSWORD:-antigaspi}
       # Dans le conteneur, le profil est dans le dossier data/ monté ci-dessous (remplace PROFILE_PATH du .env)
       PROFILE_PATH: /app/data/profil.md
-      # Par défaut, on lance la démo en terminal. Le profil mcp (serveur MCP) est prévu hors conteneur :
+      # Application web par défaut ; demo ou chat pour les démos en terminal. Le profil mcp est prévu hors conteneur :
       # il écoute 127.0.0.1, donc le port publié ci-dessous serait injoignable depuis l'hôte.
-      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-demo}
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-}
+    depends_on:
+      db:
+        condition: service_healthy
     volumes:
-      - ./data:/app/data:ro
+      - ./data:/app/data
     ports:
       - "8080:8080"
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "8081:80"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:

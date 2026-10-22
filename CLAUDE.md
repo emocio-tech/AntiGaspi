@@ -7,7 +7,7 @@ Application anti-gaspillage : inventaire d'aliments triés par urgence de pérem
 - Frontend : Angular 22 (composants autonomes, signaux, `httpResource`), dans `frontend/`. Design issu de Claude Design (projet « Maquettes UI formulaire », design system Emocio) : tokens dans `frontend/src/styles/tokens.css`, police Quicksand (Fontsource), icônes `@lucide/angular`, rendu Markdown du chat avec `marked` (version exacte, dépendance de sécurité). Tests Vitest via `ng test`.
 - LLM : Spring AI `ChatClient`, isolé derrière l'interface `RecipeGenerator`. Nova Lite via le proxy compatible OpenAI de la formation (starter Spring AI OpenAI ; variables `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL=nova-lite`).
 - MCP : Spring AI MCP Server (starter webmvc, Streamable HTTP), actif uniquement avec le profil `mcp`.
-- Données : inventaire et ustensiles en fichiers JSON (`backend/src/main/resources/data/` ; les ustensiles modifiés par le chat vont dans `data/utensils.json`, gitignoré), derrière des interfaces `*Repository` qui seront implémentées en base (PostgreSQL).
+- Données : inventaire et ustensiles en base PostgreSQL (docker compose) via Spring Data JPA, derrière des interfaces `*Repository`. Schéma par Flyway (`backend/src/main/resources/db/migration/`), amorçage unique par la migration Java `config/SeedDataMigration` (version 2) à partir de `backend/src/main/resources/data/*.json` (jours relatifs, `Clock`). Tests sur H2 en mémoire en mode PostgreSQL (`backend/src/test/resources/config/application.yml`, une base neuve par contexte Spring).
 - Profil utilisateur (préférences alimentaires) : fichier Markdown `data/profil.md` (gitignoré), gabarit `data/profil.example.md`.
 - Recette : format JSON standardisé (`title`, `servings`, `preparationMinutes`, `utensils`, `ingredients`, `steps`), décrit dans `docs/format-recette.md`.
 
@@ -22,11 +22,11 @@ fr.antigaspi
 ├── recipe/       model/ (Recipe, RecipeIngredient, RecipeRequest, RecipeContext, GeneratedRecipe, RecipeIssue) · service/ (RecipeService, RecipeChecker : garde-fou post-LLM) · api/ (RecipeController : POST /api/recipes, une recette et un appel LLM par requête, `variant` facultatif de 0 à 2 : RecipeService impose alors un type de plat (`DishType`) et, si possible, un aliment principal différents ; RecipeExceptionHandler : 502 si le LLM échoue) · llm/ (RecipeGenerator, Spring AI, prompts) · tool/ (RecipeTools : tool LLM genererRecette, génération + garde-fou en un appel) · cli/ (démo terminal)
 ├── chat/         llm/ (ChatAssistant : ChatClient + mémoire + tous les beans ChatTools, ToolCalledEvent publié à chaque appel de tool) · model/ (ChatReply, ChatEntry, ChatRole) · api/ (ChatController : POST, GET et DELETE /api/chat, ChatAssistant.replyWithTools renvoie aussi les tools appelés pour ce message ; ChatExceptionHandler : 502 si le LLM échoue) · cli/ (démo chat en terminal)
 ├── common/       utilitaires partagés (Resources : lecture JSON et texte ; ChatTools : marqueur des classes de tools exposées au chat ; api/ : ApiError et ApiExceptionHandler, 400 `{"message"}` commun à toutes les API REST)
-└── config/       configuration Spring (Clock)
+└── config/       configuration Spring (Clock) et SeedDataMigration (amorçage des données, migration Flyway Java)
 ```
 
 - `model/` : records et enums métier, sans dépendance à Spring.
-- `repository/` : interface `XxxRepository` + implémentation actuelle (`JsonXxxRepository`, `MarkdownProfileRepository`) ; l'implémentation JPA viendra ici.
+- `repository/` : interface `XxxRepository` + implémentation (`JpaXxxRepository` avec son entité `XxxEntity` et son interface Spring Data `XxxJpaRepository`, package-private ; `MarkdownProfileRepository`). Les records de `model/` ne sont jamais des entités ; les quantités relues sont normalisées (`2.500` → `2.5`).
 - `service/` : logique métier, seul point d'entrée pour les futurs `api/` (REST) et MCP.
 - `llm/` : tout ce qui dépend du fournisseur de LLM, derrière `RecipeGenerator`.
 - `tool/` : tools Spring AI (`@Tool`) d'une fonctionnalité, appelables par le LLM ; ils délèguent au service, sans logique métier. La classe implémente `ChatTools` pour être exposée au chat automatiquement.
@@ -41,6 +41,7 @@ fr.antigaspi
 - Les écrans de génération appellent le vrai LLM : aucun test ne le fait, la vérification en réel se fait en lançant backend et front (`npm start`).
 
 ## Commandes
+- Base de données, nécessaire à tout lancement local (`spring-boot:run`, profils `demo`, `chat`, `mcp`) : `docker compose up -d db` (PostgreSQL 17 sur `127.0.0.1:5432`, volume `pgdata` ; `docker compose down -v` remet la base à zéro et relance l'amorçage). Les tests n'en ont pas besoin (H2).
 - Tous les tests (sans appel LLM) : `mvn -q verify`
 - Une classe de test : `mvn -q test -pl backend -Dtest=Classe#methode`
 - Formatage : `mvn formatter:format` (le hook pre-commit lance `formatter:validate`)
@@ -52,7 +53,7 @@ fr.antigaspi
 - Frontend (depuis `frontend/`, Node 24) :
   - Installation : `npm ci`. Tests (sans réseau) : `npm test -- --no-watch`. Build : `npm run build`.
   - Lancement : démarrer le backend (`mvn -pl backend spring-boot:run`, port 8080), puis `npm start` ; l'appli est sur `http://localhost:4200` (pas `127.0.0.1` : le serveur écoute en IPv6).
-- Sans Java, avec Docker : `docker compose build` (compile + tests), puis `docker compose run --rm backend` (démo). Le `.env` n'est jamais copié dans l'image (`.dockerignore`).
+- Appli complète avec Docker : `docker compose up -d --build` (base, backend, front nginx sur `http://localhost:8081` ; le build du backend lance les tests). Démos : `SPRING_PROFILES_ACTIVE=demo docker compose run --rm backend` (ou `chat`). Le `.env` (facultatif, gabarit `.env.example`) n'est jamais copié dans l'image (`.dockerignore`) ; `./data` est monté en écriture pour `profil.md`.
 
 ## Conventions
 - Code, commentaires, doc et messages de commit en français.
@@ -64,7 +65,7 @@ fr.antigaspi
 
 ## Restrictions
 - Ne jamais lire ni modifier `.env` (clés API), par aucun moyen. Seul `.env.example` est lisible.
-- Ne jamais committer `.env`, une clé API, `data/profil.md` ou `data/utensils.json`.
+- Ne jamais committer `.env`, une clé API ou `data/profil.md`.
 
 ## Méthode : TDD obligatoire
 Toute feature ou correction suit le cycle Red → Green → Refactor :

@@ -5,7 +5,8 @@ import java.util.List;
 import fr.antigaspi.utensil.model.Utensil;
 
 /**
- * Accès aux ustensiles disponibles. Implémenté aujourd'hui par un fichier JSON, plus tard par PostgreSQL.
+ * Accès aux ustensiles disponibles, stockés en base (PostgreSQL, H2 en test) et implémenté par
+ * {@link JpaUtensilRepository}.
  */
 public interface UtensilRepository {
 

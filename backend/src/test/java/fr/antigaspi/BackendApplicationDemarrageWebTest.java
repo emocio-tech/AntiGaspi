@@ -12,9 +12,11 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.boot.test.web.server.LocalServerPort;
 
+import tools.jackson.databind.json.JsonMapper;
+
 /**
- * Démarrage complet avec un vrai serveur web et la configuration par défaut : les chemins relatifs des données
- * ({@code ../data/profil.md}, {@code ../data/utensils.json}) ne doivent pas être pris pour des ressources web.
+ * Démarrage complet avec un vrai serveur web et la configuration par défaut : le chemin relatif du profil
+ * ({@code ../data/profil.md}) ne doit pas être pris pour une ressource web, et l'inventaire amorcé en base est servi.
  */
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
 class BackendApplicationDemarrageWebTest {
@@ -29,5 +31,16 @@ class BackendApplicationDemarrageWebTest {
         HttpResponse<String> response = HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString());
 
         assertThat(response.statusCode()).isLessThan(500);
+    }
+
+    @Test
+    void apiInventaire_renvoieLesAlimentsAmorces() throws Exception {
+        HttpRequest request = HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + "/api/ingredients"))
+                .build();
+
+        HttpResponse<String> response = HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString());
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(JsonMapper.builder().build().readTree(response.body()).size()).isEqualTo(28);
     }
 }
