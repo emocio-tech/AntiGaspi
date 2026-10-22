@@ -159,3 +159,25 @@
   font-size: 14px;
   color: var(--text-muted);
 }
+
+.cook {
+  display: flex;
+  justify-content: center;
+}
+
+.cook-link {
+  display: inline-flex;
+  align-items: center;
+  height: 44px;
+  padding: 0 var(--space-6, 24px);
+  border-radius: var(--radius-pill);
+  background: var(--action-primary);
+  color: var(--text-on-brand);
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
+  text-decoration: none;
+}
+
+.cook-link:hover {
+  background: var(--action-primary-hover);
+}

@@ -53,7 +53,7 @@ Un ingrédient est stocké en base avec :
 - Sortie au **format JSON standardisé**, stockable en base plus tard : titre, nombre de personnes, temps de préparation estimé, ustensiles utilisés, ingrédients (nom, poids ou quantité, unité, lien optionnel vers l'aliment du stock) et étapes. Voir [docs/format-recette.md](docs/format-recette.md).
 
 ### 3. « J'ai cuisiné cette recette » → mise à jour de la liste
-Après avoir réalisé une recette, un **écran de confirmation** liste les ingrédients utilisés avec les quantités **préremplies et modifiables** (si la recette a été adaptée). À la validation, les quantités sont décrémentées et les ingrédients épuisés sont supprimés.
+Après avoir réalisé une recette, un **écran de confirmation** liste les ingrédients utilisés avec les quantités **préremplies et modifiables** (si la recette a été adaptée). À la validation, les quantités sont décrémentées et les ingrédients épuisés sont supprimés. Les quantités sont préremplies dans l'unité de l'inventaire (g ↔ kg et ml ↔ l convertis ; sinon champ vide à compléter). On peut aussi donner un avis 👍/👎 et un commentaire facultatifs : la recette cuisinée est enregistrée en base avec son avis.
 
 ### 4. Profil utilisateur (`.md`) et feedback
 Chaque utilisateur a un fichier Markdown de profil (préférences alimentaires, historique des retours), lu par le LLM à chaque génération. Il est **modifiable par l'utilisateur** (interface et MCP).
@@ -162,7 +162,7 @@ Table `utensil` (ustensiles disponibles) :
 | `id` | `bigint` | PK |
 | `name` | `varchar` | non nul, unique |
 
-Les recettes générées pourront être stockées à partir de leur [format JSON standardisé](docs/format-recette.md), qui propose aussi un schéma de tables.
+Les recettes cuisinées sont stockées dans la table `cooked_recipe` (titre, recette au [format JSON standardisé](docs/format-recette.md), date, avis 👍/👎 et commentaire facultatifs). Les recettes seulement générées ne sont pas conservées.
 
 > Le schéma est créé par Flyway (`backend/src/main/resources/db/migration/`). Au premier démarrage, une migration Java (`SeedDataMigration`) amorce la base à partir de `backend/src/main/resources/data/*.json`, en jours relatifs à la date du jour ; elle ne s'exécute qu'une fois (vider l'inventaire ne le réamorce pas, `docker compose down -v` si).
 
@@ -234,7 +234,7 @@ Toutes les variables sont décrites dans [.env.example](.env.example) : fourniss
 |---|---|---|
 | Stack | Java (Spring Boot, Maven) + Angular, web app responsive | 2026-10-19 |
 | Base de données | PostgreSQL pour les ingrédients et les ustensiles (les recettes plus tard) | 2026-10-20 |
-| Feedback | pas de table : enrichit le profil `.md`, consolidé par le LLM | 2026-10-19 |
+| Feedback | stocké en base avec la recette cuisinée (avis 👍/👎 et commentaire facultatifs), plus dans le profil `.md` | 2026-10-22 |
 | Utilisateurs | mono-utilisateur pour le MVP, pas d'authentification | 2026-10-19 |
 | LLM | Nova Lite via le proxy compatible OpenAI de la formation (accès direct à Bedrock abandonné), fournisseur interchangeable par configuration | 2026-10-20 |
 | Ingrédient | nom, catégorie, quantité + unité, péremption optionnelle (estimée sinon), date d'ajout | 2026-10-19 |

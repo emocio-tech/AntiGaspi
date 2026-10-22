@@ -13,6 +13,11 @@ export const routes: Routes = [
     loadComponent: () => import('./recipes/recipes-page').then((m) => m.RecipesPage),
   },
   {
+    path: 'recettes/:id/cuisine',
+    title: 'Cuisiner · antigaspi',
+    loadComponent: () => import('./recipes/cook-page').then((m) => m.CookPage),
+  },
+  {
     path: 'recettes/:id',
     title: 'Recette · antigaspi',
     loadComponent: () => import('./recipes/recipe-detail-page').then((m) => m.RecipeDetailPage),

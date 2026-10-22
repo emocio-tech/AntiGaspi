@@ -1,0 +1,73 @@
+<a class="back" [routerLink]="['/recettes', id()]"><svg lucideArrowLeft [size]="16"></svg>Retour à la recette</a>
+
+@if (generated(); as result) {
+  <header class="head">
+    <h1>J’ai cuisiné : {{ result.recipe.title }}</h1>
+    <p class="intro">Ajustez les quantités réellement utilisées ; les aliments épuisés seront retirés de l’inventaire.</p>
+  </header>
+
+  <section class="card">
+    <h2>Ingrédients utilisés</h2>
+    <ul class="list">
+      @for (line of lines(); track line.ingredientId) {
+        @if (line.stock; as stock) {
+          <li class="line" data-testid="cook-line">
+            <div class="info">
+              <span class="name" data-testid="cook-name">{{ stock.name }}</span>
+              <span class="stock" data-testid="cook-stock">En stock : {{ formatQuantity(stock.quantity, stock.unit) }}</span>
+              @if (line.recipeUnit; as unit) {
+                <span class="stock hint" data-testid="cook-hint">Unité de la recette : {{ unit }}</span>
+              }
+            </div>
+            <div class="qty">
+              <input
+                type="number"
+                min="0"
+                step="any"
+                inputmode="decimal"
+                data-testid="cook-quantity"
+                [attr.placeholder]="line.recipeUnit ? 'À compléter' : null"
+                [attr.aria-label]="'Quantité utilisée de ' + stock.name"
+                [value]="line.quantity"
+                (input)="setQuantity(line.ingredientId, $any($event.target).value)"
+              />
+              <span class="unit" data-testid="cook-unit">{{ stock.unit }}</span>
+            </div>
+          </li>
+        } @else if (!inventoryLoading()) {
+          <li class="line gone" data-testid="cook-missing">
+            <span class="name">{{ line.name }}</span>
+            <span class="stock">Déjà retiré de l’inventaire</span>
+          </li>
+        }
+      }
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>Votre avis</h2>
+    <div class="rating">
+      <button type="button" class="thumb" data-testid="cook-up" aria-label="J’ai aimé" [attr.aria-pressed]="rating() === 'UP'" (click)="toggleRating('UP')">
+        <svg lucideThumbsUp [size]="20"></svg>
+      </button>
+      <button type="button" class="thumb" data-testid="cook-down" aria-label="Je n’ai pas aimé" [attr.aria-pressed]="rating() === 'DOWN'" (click)="toggleRating('DOWN')">
+        <svg lucideThumbsDown [size]="20"></svg>
+      </button>
+    </div>
+    <label class="field">
+      Commentaire (facultatif)
+      <textarea data-testid="cook-comment" rows="3" maxlength="1000" placeholder="Facultatif : ce qui vous a plu ou non" [value]="comment()" (input)="comment.set($any($event.target).value)"></textarea>
+    </label>
+  </section>
+
+  @if (error(); as message) {
+    <p class="alert" role="alert" data-testid="cook-error">{{ message }}</p>
+  }
+
+  <div class="actions">
+    <button type="button" class="btn" data-testid="cook-submit" [disabled]="invalid() || sending() || inventoryLoading()" (click)="submit()">Valider</button>
+  </div>
+} @else {
+  <p class="missing" data-testid="missing">Cette recette n’est plus disponible : les recettes proposées ne sont conservées que le temps de la session.</p>
+  <a class="back" routerLink="/recettes">Retour aux recettes</a>
+}

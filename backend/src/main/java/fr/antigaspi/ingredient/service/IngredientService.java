@@ -8,6 +8,7 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -164,6 +165,31 @@ public class IngredientService {
             throw new IngredientNotFoundException(unknown);
         }
         repository.deleteAllById(ids);
+    }
+
+    /**
+     * Décompte les quantités utilisées : un aliment épuisé est retiré, les identifiants inconnus sont ignorés.
+     *
+     * @throws IllegalArgumentException
+     *             si une quantité est nulle (absente) ou négative (rien n'est alors modifié)
+     */
+    @Transactional
+    public void consume(Map<Long, BigDecimal> used) {
+        used.values().forEach(quantity -> {
+            if (quantity == null || quantity.signum() < 0) {
+                throw new IllegalArgumentException("La quantité utilisée doit être positive ou nulle : "
+                        + (quantity == null ? "aucune" : quantity.stripTrailingZeros().toPlainString()));
+            }
+        });
+        used.forEach((id, quantity) -> repository.findById(id).ifPresent(existing -> {
+            BigDecimal remaining = existing.quantity().subtract(quantity).setScale(3, RoundingMode.HALF_UP);
+            if (remaining.signum() <= 0) {
+                repository.deleteAllById(List.of(id));
+            } else {
+                repository.save(new Ingredient(existing.id(), existing.name(), existing.category(),
+                        validateQuantity(remaining), existing.unit(), existing.expiryDate(), existing.addedAt()));
+            }
+        }));
     }
 
     private Ingredient find(long id) {

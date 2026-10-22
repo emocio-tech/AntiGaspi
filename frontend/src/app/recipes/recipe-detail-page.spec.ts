@@ -90,4 +90,11 @@ describe('RecipeDetailPage', () => {
 
     expect(html().querySelector('a[href="/recettes"]')).not.toBeNull();
   });
+
+  it('propose de cuisiner la recette', () => {
+    ouvrir('0');
+
+    expect(q('cook-link')?.getAttribute('href')).toBe('/recettes/0/cuisine');
+    expect(q('cook-link')?.textContent).toContain('J’ai cuisiné cette recette');
+  });
 });

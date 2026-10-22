@@ -9,7 +9,9 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -359,5 +361,42 @@ class IngredientServiceTest {
         assertThatThrownBy(() -> service.removeAll(null)).isExactlyInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Aucun aliment à retirer");
         assertThat(repository.findAll()).hasSize(1);
+    }
+
+    @Test
+    void consume_decrementeRetireLesAlimentsEpuisesEtIgnoreLesIdentifiantsAbsents() {
+        InMemoryIngredientRepository repository = new InMemoryIngredientRepository(
+                ingredient(1, "Riz", Category.FECULENTS, 200), ingredient(2, "Lait", Category.PRODUITS_LAITIERS, 5),
+                ingredient(3, "Pommes", Category.FRUITS, 4));
+        repository.save(new Ingredient(1L, "Riz", Category.FECULENTS, new BigDecimal("2.5"), Unit.KG,
+                TODAY.plusDays(200), NOW));
+
+        serviceOver(repository).consume(Map.of(1L, new BigDecimal("1"), 2L, BigDecimal.ONE, 99L, BigDecimal.TEN));
+
+        assertThat(repository.findAll()).extracting(Ingredient::name).containsExactlyInAnyOrder("Riz", "Pommes");
+        assertThat(repository.findById(1L)).get().extracting(Ingredient::quantity).isEqualTo(new BigDecimal("1.5"));
+    }
+
+    @Test
+    void consume_quantiteNegative_leveIllegalArgumentException_etRienNEstModifie() {
+        InMemoryIngredientRepository repository = new InMemoryIngredientRepository(
+                ingredient(1, "Riz", Category.FECULENTS, 200), ingredient(2, "Lait", Category.PRODUITS_LAITIERS, 5));
+        IngredientService service = serviceOver(repository);
+        Map<Long, BigDecimal> used = new LinkedHashMap<>();
+        used.put(1L, BigDecimal.ONE);
+        used.put(2L, new BigDecimal("-1"));
+
+        assertThatThrownBy(() -> service.consume(used)).isExactlyInstanceOf(IllegalArgumentException.class);
+        assertThat(repository.findAll()).hasSize(2);
+    }
+
+    @Test
+    void consume_resteInferieurAuMillieme_alimentRetire() {
+        InMemoryIngredientRepository repository = new InMemoryIngredientRepository(new Ingredient(1L, "Safran",
+                Category.CONDIMENTS, new BigDecimal("0.001"), Unit.G, TODAY.plusDays(200), NOW));
+
+        serviceOver(repository).consume(Map.of(1L, new BigDecimal("0.0007")));
+
+        assertThat(repository.findById(1L)).isEmpty();
     }
 }
