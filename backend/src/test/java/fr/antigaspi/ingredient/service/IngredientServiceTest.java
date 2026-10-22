@@ -12,12 +12,19 @@ import java.time.ZoneOffset;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import fr.antigaspi.ingredient.model.Category;
+import fr.antigaspi.ingredient.repository.InMemoryIngredientRepository;
 import fr.antigaspi.ingredient.model.Ingredient;
+import fr.antigaspi.ingredient.model.IngredientDraft;
 import fr.antigaspi.ingredient.model.IngredientView;
 import fr.antigaspi.ingredient.model.Unit;
 import fr.antigaspi.ingredient.model.Urgency;
+import fr.antigaspi.ingredient.repository.InMemoryIngredientRepository;
+import java.util.stream.Stream;
+import org.junit.jupiter.params.provider.Arguments;
 
 class IngredientServiceTest {
 
@@ -37,7 +44,7 @@ class IngredientServiceTest {
     }
 
     private static IngredientService service(Ingredient... ingredients) {
-        return new IngredientService(() -> List.of(ingredients), CLOCK);
+        return new IngredientService(new InMemoryIngredientRepository(ingredients), CLOCK);
     }
 
     private static List<String> names(List<IngredientView> views) {
@@ -138,5 +145,219 @@ class IngredientServiceTest {
     void search_parametresInvalides_leveIllegalArgumentException() {
         assertThatThrownBy(() -> stock().search(null, -1, null)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> stock().search(null, null, 0)).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    // --- Gestion de l'inventaire ---
+
+    private static IngredientDraft draft(String name, LocalDate expiryDate) {
+        return new IngredientDraft(name, Category.PRODUITS_LAITIERS, new BigDecimal("2"), Unit.L, expiryDate);
+    }
+
+    @Test
+    void add_quantiteAuDelaDeLaColonne_refuseeSansRienEnregistrer() {
+        InMemoryIngredientRepository repository = new InMemoryIngredientRepository();
+        IngredientService service = serviceOver(repository);
+        IngredientDraft enorme = new IngredientDraft("Riz", Category.FECULENTS, new BigDecimal("10000000"), Unit.G,
+                null);
+
+        assertThatThrownBy(() -> service.add(enorme)).isExactlyInstanceOf(IllegalArgumentException.class)
+                .hasMessage("La quantité ne peut pas dépasser 9999999.999 : 10000000");
+        assertThatThrownBy(() -> service.updateQuantity(1, new BigDecimal("10000000")))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThat(repository.findAll()).isEmpty();
+    }
+
+    @Test
+    void add_quantiteAPlusDeTroisDecimales_arrondieAuMillieme() {
+        IngredientService service = serviceOver(new InMemoryIngredientRepository());
+
+        IngredientView added = service
+                .add(new IngredientDraft("Farine", Category.EPICERIE_SECHE, new BigDecimal("0.12345"), Unit.KG, null));
+
+        assertThat(added.ingredient().quantity()).isEqualByComparingTo("0.123");
+    }
+
+    private static IngredientService serviceOver(InMemoryIngredientRepository repository) {
+        return new IngredientService(repository, CLOCK);
+    }
+
+    private static Stream<Arguments> invalidDrafts() {
+        BigDecimal one = BigDecimal.ONE;
+        LocalDate date = TODAY.plusDays(3);
+        return Stream.of(
+                Arguments.of(new IngredientDraft(null, Category.FRUITS, one, Unit.KG, date),
+                        "Le nom de l'aliment est vide"),
+                Arguments.of(new IngredientDraft("   ", Category.FRUITS, one, Unit.KG, date),
+                        "Le nom de l'aliment est vide"),
+                Arguments.of(new IngredientDraft("a".repeat(101), Category.FRUITS, one, Unit.KG, date),
+                        "Le nom de l'aliment dépasse 100 caractères"),
+                Arguments.of(new IngredientDraft("Pommes", Category.FRUITS, BigDecimal.ZERO, Unit.KG, date),
+                        "La quantité doit être positive : 0"),
+                Arguments.of(new IngredientDraft("Pommes", Category.FRUITS, new BigDecimal("-2"), Unit.KG, date),
+                        "La quantité doit être positive : -2"),
+                Arguments.of(new IngredientDraft("Pommes", Category.FRUITS, null, Unit.KG, date),
+                        "La quantité doit être positive : aucune"),
+                Arguments.of(new IngredientDraft("Pommes", null, one, Unit.KG, date), "La catégorie est obligatoire"),
+                Arguments.of(new IngredientDraft("Pommes", Category.FRUITS, one, null, date),
+                        "L'unité est obligatoire"));
+    }
+
+    @Test
+    void add_attribueUnIdentifiant_nettoieLeNom_etFixeLaDateDAjout() {
+        InMemoryIngredientRepository repository = new InMemoryIngredientRepository(
+                ingredient(7, "Riz", Category.FECULENTS, 200));
+        IngredientService service = serviceOver(repository);
+
+        IngredientView added = service.add(draft("  Crème fraîche  ", TODAY.plusDays(2)));
+
+        assertThat(added.ingredient().id()).isEqualTo(8L);
+        assertThat(added.ingredient().name()).isEqualTo("Crème fraîche");
+        assertThat(added.ingredient().addedAt()).isEqualTo(NOW);
+        assertThat(added.urgency()).isEqualTo(Urgency.SOON);
+        assertThat(service.listByUrgency()).extracting(v -> v.ingredient().id()).contains(8L);
+        assertThat(service.listByUrgency().stream().filter(v -> v.ingredient().id() == 8L).findFirst().orElseThrow()
+                .urgency()).isEqualTo(Urgency.SOON);
+    }
+
+    @Test
+    void add_sansDate_laDatePeremptionEstEstimee() {
+        IngredientView added = serviceOver(new InMemoryIngredientRepository()).add(draft("Lait", null));
+
+        assertThat(added.estimated()).isTrue();
+        assertThat(added.ingredient().expiryDate()).isNull();
+    }
+
+    @Test
+    void add_datePasseeAcceptee() {
+        IngredientView added = serviceOver(new InMemoryIngredientRepository()).add(draft("Lait", TODAY.minusDays(3)));
+
+        assertThat(added.daysLeft()).isEqualTo(-3);
+        assertThat(added.urgency()).isEqualTo(Urgency.EXPIRED_OR_TODAY);
+    }
+
+    @Test
+    void add_homonymeAccepte() {
+        InMemoryIngredientRepository repository = new InMemoryIngredientRepository(
+                ingredient(1, "Lait", Category.PRODUITS_LAITIERS, 5));
+        IngredientService service = serviceOver(repository);
+
+        service.add(draft("Lait", null));
+
+        assertThat(names(service.listByUrgency())).containsExactlyInAnyOrder("Lait", "Lait");
+    }
+
+    @ParameterizedTest
+    @MethodSource("invalidDrafts")
+    void add_valeurRefusee_leveIllegalArgumentExceptionSansRienEnregistrer(IngredientDraft draft, String message) {
+        InMemoryIngredientRepository repository = new InMemoryIngredientRepository();
+
+        assertThatThrownBy(() -> serviceOver(repository).add(draft)).isExactlyInstanceOf(IllegalArgumentException.class)
+                .hasMessage(message);
+        assertThat(repository.findAll()).isEmpty();
+    }
+
+    @Test
+    void update_remplaceLesChampsEnGardantIdentifiantEtDateDAjout() {
+        Ingredient original = ingredient(4, "Lait", Category.PRODUITS_LAITIERS, 5, 2);
+        InMemoryIngredientRepository repository = new InMemoryIngredientRepository(original);
+
+        IngredientView updated = serviceOver(repository).update(4L, new IngredientDraft(" Lait d'amande ",
+                Category.BOISSONS, new BigDecimal("3"), Unit.L, TODAY.plusDays(9)));
+
+        assertThat(updated.ingredient()).isEqualTo(new Ingredient(4L, "Lait d'amande", Category.BOISSONS,
+                new BigDecimal("3"), Unit.L, TODAY.plusDays(9), original.addedAt()));
+        assertThat(repository.findAll()).containsExactly(updated.ingredient());
+    }
+
+    @Test
+    void update_idInconnu_leveIngredientNotFoundException() {
+        InMemoryIngredientRepository repository = new InMemoryIngredientRepository();
+
+        assertThatThrownBy(() -> serviceOver(repository).update(99L, draft("Lait", null)))
+                .isInstanceOf(IngredientNotFoundException.class).hasMessage("Aucun aliment avec l'identifiant 99");
+    }
+
+    @ParameterizedTest
+    @MethodSource("invalidDrafts")
+    void update_valeurRefusee_leveIllegalArgumentException_etLAlimentResteIntact(IngredientDraft draft,
+            String message) {
+        Ingredient original = ingredient(4, "Lait", Category.PRODUITS_LAITIERS, 5);
+        InMemoryIngredientRepository repository = new InMemoryIngredientRepository(original);
+
+        assertThatThrownBy(() -> serviceOver(repository).update(4L, draft))
+                .isExactlyInstanceOf(IllegalArgumentException.class).hasMessage(message);
+        assertThat(repository.findAll()).containsExactly(original);
+    }
+
+    @Test
+    void updateQuantity_changeSeulementLaQuantite() {
+        Ingredient original = ingredient(4, "Lait", Category.PRODUITS_LAITIERS, 5);
+        InMemoryIngredientRepository repository = new InMemoryIngredientRepository(original);
+
+        IngredientView updated = serviceOver(repository).updateQuantity(4L, new BigDecimal("0.5"));
+
+        assertThat(updated.ingredient()).isEqualTo(new Ingredient(4L, "Lait", Category.PRODUITS_LAITIERS,
+                new BigDecimal("0.5"), Unit.PIECE, original.expiryDate(), original.addedAt()));
+    }
+
+    @Test
+    void updateQuantity_quantiteNonPositive_ouIdInconnu_sontRefuses() {
+        Ingredient original = ingredient(4, "Lait", Category.PRODUITS_LAITIERS, 5);
+        InMemoryIngredientRepository repository = new InMemoryIngredientRepository(original);
+        IngredientService service = serviceOver(repository);
+
+        assertThatThrownBy(() -> service.updateQuantity(4L, BigDecimal.ZERO))
+                .isExactlyInstanceOf(IllegalArgumentException.class).hasMessage("La quantité doit être positive : 0");
+        assertThat(repository.findAll()).containsExactly(original);
+        assertThatThrownBy(() -> service.updateQuantity(99L, BigDecimal.ONE))
+                .isInstanceOf(IngredientNotFoundException.class).hasMessage("Aucun aliment avec l'identifiant 99");
+    }
+
+    @Test
+    void remove_supprimeLAliment_etIdInconnuLeveNotFound() {
+        InMemoryIngredientRepository repository = new InMemoryIngredientRepository(
+                ingredient(1, "Riz", Category.FECULENTS, 200), ingredient(2, "Lait", Category.PRODUITS_LAITIERS, 5));
+        IngredientService service = serviceOver(repository);
+
+        service.remove(1L);
+
+        assertThat(names(service.listByUrgency())).containsExactly("Lait");
+        assertThatThrownBy(() -> service.remove(99L)).isInstanceOf(IngredientNotFoundException.class)
+                .hasMessage("Aucun aliment avec l'identifiant 99");
+    }
+
+    @Test
+    void removeAll_supprimeTousLesAlimentsDonnes() {
+        InMemoryIngredientRepository repository = new InMemoryIngredientRepository(
+                ingredient(1, "Riz", Category.FECULENTS, 200), ingredient(2, "Lait", Category.PRODUITS_LAITIERS, 5),
+                ingredient(3, "Pommes", Category.FRUITS, 4));
+
+        serviceOver(repository).removeAll(List.of(1L, 3L));
+
+        assertThat(repository.findAll()).extracting(Ingredient::name).containsExactly("Lait");
+    }
+
+    @Test
+    void removeAll_unIdentifiantInconnu_neSupprimeRien_etCiteLesInconnus() {
+        InMemoryIngredientRepository repository = new InMemoryIngredientRepository(
+                ingredient(1, "Riz", Category.FECULENTS, 200), ingredient(2, "Lait", Category.PRODUITS_LAITIERS, 5));
+
+        assertThatThrownBy(() -> serviceOver(repository).removeAll(List.of(1L, 98L, 99L)))
+                .isInstanceOf(IngredientNotFoundException.class)
+                .hasMessage("Aucun aliment avec les identifiants 98, 99");
+        assertThat(repository.findAll()).hasSize(2);
+    }
+
+    @Test
+    void removeAll_listeVideOuNulle_leveIllegalArgumentException() {
+        InMemoryIngredientRepository repository = new InMemoryIngredientRepository(
+                ingredient(1, "Riz", Category.FECULENTS, 200));
+        IngredientService service = serviceOver(repository);
+
+        assertThatThrownBy(() -> service.removeAll(List.of())).isExactlyInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Aucun aliment à retirer");
+        assertThatThrownBy(() -> service.removeAll(null)).isExactlyInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Aucun aliment à retirer");
+        assertThat(repository.findAll()).hasSize(1);
     }
 }

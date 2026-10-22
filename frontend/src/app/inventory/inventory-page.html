@@ -1,7 +1,47 @@
 <header class="head">
   <h1>Inventaire</h1>
   <p>{{ summary() }}</p>
+  <div class="actions">
+    <button type="button" class="btn btn-primary" data-testid="add-open" (click)="openForm(null)">
+      <svg lucidePlus [size]="17"></svg>
+      Ajouter
+    </button>
+    @if (store.items().length > 0) {
+      <button type="button" class="btn" data-testid="select-mode" (click)="toggleSelecting()">
+        <svg lucideListChecks [size]="17"></svg>
+        {{ selecting() ? 'Terminer' : 'Sélectionner' }}
+      </button>
+    }
+    @if (selecting()) {
+      <button
+        type="button"
+        class="btn"
+        data-testid="remove-selected"
+        [disabled]="selected().length === 0"
+        (click)="removeSelected()"
+      >
+        <svg lucideTrash2 [size]="17"></svg>
+        Retirer ({{ selected().length }})
+      </button>
+    }
+  </div>
 </header>
+
+@if (form(); as f) {
+  <app-ingredient-form [ingredient]="f.ingredient" (closed)="form.set(null)" />
+} @else if (store.actionError()) {
+  <p class="alert" role="alert" data-testid="action-error">{{ store.actionError() }}</p>
+}
+
+@if (store.pendingRemoval() > 0) {
+  <div class="undo" data-testid="undo-banner">
+    <span>{{ store.pendingRemoval() }} aliment{{ store.pendingRemoval() > 1 ? 's retirés' : ' retiré' }}</span>
+    <button type="button" class="toggle" data-testid="undo" (click)="store.undo()">
+      <svg lucideUndo2 [size]="15"></svg>
+      Annuler
+    </button>
+  </div>
+}
 
 @if (store.loading() && store.items().length === 0) {
   <p class="state" data-testid="loading">Chargement de l'inventaire…</p>
@@ -45,7 +85,25 @@
       @if (isOpen(group.urgency)) {
         <ul class="items">
           @for (item of group.items; track item.id) {
-            <li class="item">
+            <li
+              class="item"
+              [attr.data-testid]="'ingredient-' + item.id"
+              [class.editable]="!selecting()"
+              [attr.tabindex]="0"
+              [attr.aria-label]="selecting() ? null : 'Modifier ' + item.name"
+              (click)="edit(item)"
+              (keydown.enter)="editByKey($event, item)"
+              (keydown.space)="editByKey($event, item)"
+            >
+              @if (selecting()) {
+                <input
+                  type="checkbox"
+                  data-testid="select-ingredient"
+                  [attr.aria-label]="'Sélectionner ' + item.name"
+                  [checked]="selected().includes(item.id)"
+                  (change)="toggleSelected(item.id)"
+                />
+              }
               <span class="icon" [style.background]="style[item.urgency].tint" [style.color]="style[item.urgency].text">
                 <app-category-icon [category]="item.category" />
               </span>

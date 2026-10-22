@@ -7,6 +7,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 
 import javax.sql.DataSource;
 
@@ -65,5 +66,49 @@ class JpaIngredientRepositoryTest {
 
         assertThat(ingredient.expiryDate()).isNull();
         assertThat(ingredient.quantity()).isEqualTo(new BigDecimal("500"));
+    }
+
+    @Test
+    void save_insereAvecUnIdentifiantPuisMetAJourSansEnCreerDAutre() {
+        Ingredient inserted = repository.save(new Ingredient(null, "Crème", Category.PRODUITS_LAITIERS,
+                new BigDecimal("2.5"), Unit.L, LocalDate.of(2026, 10, 25), ADDED_AT));
+
+        assertThat(inserted.id()).isNotNull();
+        assertThat(repository.findAll()).hasSize(1);
+
+        Ingredient updated = repository.save(new Ingredient(inserted.id(), "Crème épaisse", Category.PRODUITS_LAITIERS,
+                new BigDecimal("1"), Unit.L, null, ADDED_AT));
+
+        assertThat(updated.id()).isEqualTo(inserted.id());
+        assertThat(repository.findAll()).singleElement().satisfies(ingredient -> {
+            assertThat(ingredient.id()).isEqualTo(inserted.id());
+            assertThat(ingredient.name()).isEqualTo("Crème épaisse");
+            assertThat(ingredient.quantity()).isEqualTo(new BigDecimal("1"));
+            assertThat(ingredient.expiryDate()).isNull();
+            assertThat(ingredient.addedAt()).isEqualTo(ADDED_AT);
+        });
+    }
+
+    @Test
+    void findById_presentOuVide() {
+        insert("Tomates", "LEGUMES", "500", "G", null);
+        Long id = repository.findAll().getFirst().id();
+
+        assertThat(repository.findById(id)).get().extracting(Ingredient::name).isEqualTo("Tomates");
+        assertThat(repository.findById(id + 1000)).isEmpty();
+    }
+
+    @Test
+    void deleteAllById_supprimeSeulementLesIdentifiantsDonnes() {
+        insert("Tomates", "LEGUMES", "500", "G", null);
+        insert("Riz", "FECULENTS", "1", "KG", null);
+        insert("Lait", "PRODUITS_LAITIERS", "1", "L", null);
+        List<Ingredient> all = repository.findAll();
+        Long first = all.get(0).id();
+        Long third = all.get(2).id();
+
+        repository.deleteAllById(List.of(first, third));
+
+        assertThat(repository.findAll()).extracting(Ingredient::id).containsExactly(all.get(1).id());
     }
 }

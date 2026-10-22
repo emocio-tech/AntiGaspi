@@ -16,6 +16,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import fr.antigaspi.ingredient.model.Category;
+import fr.antigaspi.ingredient.repository.InMemoryIngredientRepository;
 import fr.antigaspi.ingredient.model.Ingredient;
 import fr.antigaspi.ingredient.model.IngredientView;
 import fr.antigaspi.ingredient.model.Unit;
@@ -75,7 +76,8 @@ class RecipeServiceTest {
     }
 
     private RecipeService service(Ingredient... ingredients) {
-        IngredientService ingredientService = new IngredientService(() -> List.of(ingredients), CLOCK);
+        IngredientService ingredientService = new IngredientService(new InMemoryIngredientRepository(ingredients),
+                CLOCK);
         UtensilService utensilService = new UtensilService(
                 new InMemoryUtensilRepository(UTENSILS.toArray(Utensil[]::new)));
         return new RecipeService(ingredientService, utensilService, profileService, generator, new RecipeChecker(),

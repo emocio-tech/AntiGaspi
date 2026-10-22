@@ -47,7 +47,17 @@ class IngredientEntity {
     @Column(name = "added_at", nullable = false)
     private Instant addedAt;
 
-    protected IngredientEntity() {
+    IngredientEntity() {
+    }
+
+    /** Copie les champs du record métier dans la ligne, sans toucher à son identifiant. */
+    void apply(Ingredient ingredient) {
+        this.name = ingredient.name();
+        this.category = ingredient.category();
+        this.quantity = ingredient.quantity();
+        this.unit = ingredient.unit();
+        this.expiryDate = ingredient.expiryDate();
+        this.addedAt = ingredient.addedAt();
     }
 
     /**

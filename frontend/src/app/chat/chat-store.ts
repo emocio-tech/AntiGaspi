@@ -1,7 +1,11 @@
 import { HttpClient } from '@angular/common/http';
-import { inject, Injectable, signal } from '@angular/core';
+import { inject, Injectable, Injector, signal } from '@angular/core';
 import { messageOf } from '../api-error';
+import { InventoryStore } from '../inventory/inventory-store';
 import { ChatHistory, ChatMessage, ChatReply } from './chat.model';
+
+/** Tools qui modifient l'inventaire : l'écran Inventaire doit alors être rechargé. */
+const INVENTORY_TOOLS = ['ajouterAliment', 'modifierQuantite', 'retirerAliments'];
 
 /**
  * Conversation avec l'assistant. Le serveur n'en garde qu'une, en mémoire : le store la recharge au premier affichage
@@ -11,6 +15,7 @@ import { ChatHistory, ChatMessage, ChatReply } from './chat.model';
 export class ChatStore {
   private readonly http = inject(HttpClient);
 
+  private readonly injector = inject(Injector);
   private loaded = false;
   /** Dernier message envoyé, conservé tant qu'il n'a pas reçu de réponse pour pouvoir le renvoyer. */
   private unanswered: string | null = null;
@@ -74,6 +79,10 @@ export class ChatStore {
           ...messages,
           { role: 'assistant', text: reply.reply, tools: reply.tools },
         ]);
+        if (reply.tools.some((tool) => INVENTORY_TOOLS.includes(tool.name))) {
+          // Récupéré à la demande : l'injecter plus tôt lancerait son GET dès l'ouverture du chat
+          this.injector.get(InventoryStore).reload();
+        }
       },
       error: (error: unknown) => {
         this.pending.set(false);

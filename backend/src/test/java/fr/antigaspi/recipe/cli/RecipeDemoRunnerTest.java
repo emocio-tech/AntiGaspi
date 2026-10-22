@@ -18,6 +18,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import fr.antigaspi.ingredient.model.Category;
+import fr.antigaspi.ingredient.repository.InMemoryIngredientRepository;
 import fr.antigaspi.ingredient.model.Ingredient;
 import fr.antigaspi.ingredient.model.Unit;
 import fr.antigaspi.ingredient.service.IngredientService;
@@ -42,8 +43,8 @@ class RecipeDemoRunnerTest {
     private final ByteArrayOutputStream output = new ByteArrayOutputStream();
     private final RecipeService recipeService = mock(RecipeService.class);
     private final IngredientService ingredientService = new IngredientService(
-            () -> List.of(new Ingredient(3L, "Courgettes", Category.LEGUMES, new BigDecimal("2.5"), Unit.KG,
-                    RecipeFixtures.TODAY.plusDays(2), RecipeFixtures.NOW)),
+            new InMemoryIngredientRepository(new Ingredient(3L, "Courgettes", Category.LEGUMES, new BigDecimal("2.5"),
+                    Unit.KG, RecipeFixtures.TODAY.plusDays(2), RecipeFixtures.NOW)),
             Clock.fixed(RecipeFixtures.NOW, ZoneOffset.UTC));
 
     private String run() {

@@ -35,9 +35,11 @@ import fr.antigaspi.chat.model.ChatEntry;
 import fr.antigaspi.chat.model.ChatReply;
 import fr.antigaspi.chat.model.ChatRole;
 import fr.antigaspi.ingredient.model.Category;
+import fr.antigaspi.ingredient.repository.InMemoryIngredientRepository;
 import fr.antigaspi.ingredient.model.Ingredient;
 import fr.antigaspi.ingredient.model.Unit;
 import fr.antigaspi.ingredient.service.IngredientService;
+import fr.antigaspi.ingredient.tool.IngredientEditTools;
 import fr.antigaspi.ingredient.tool.IngredientTools;
 import fr.antigaspi.profile.model.UserProfile;
 import fr.antigaspi.profile.service.ProfileService;
@@ -55,8 +57,9 @@ class ChatAssistantTest {
 
     private static final Instant NOW = Instant.parse("2026-10-20T10:00:00Z");
 
-    private static final IngredientService INGREDIENTS = new IngredientService(() -> List.of(new Ingredient(3L,
-            "Courgettes", Category.LEGUMES, new BigDecimal("2.5"), Unit.KG, LocalDate.of(2026, 10, 22), NOW)),
+    private static final IngredientService INGREDIENTS = new IngredientService(
+            new InMemoryIngredientRepository(new Ingredient(3L, "Courgettes", Category.LEGUMES, new BigDecimal("2.5"),
+                    Unit.KG, LocalDate.of(2026, 10, 22), NOW)),
             Clock.fixed(NOW, ZoneOffset.UTC));
 
     private static final RecipeTools RECIPE_TOOLS = new RecipeTools(
@@ -98,8 +101,9 @@ class ChatAssistantTest {
             }
         };
         return new ChatAssistant(ChatClient.builder(chatModel),
-                List.of(new IngredientTools(INGREDIENTS), RECIPE_TOOLS, UTENSIL_TOOLS, PROFILE_TOOLS), events::add,
-                new ByteArrayResource("PROMPT SYSTEME CHAT".getBytes(StandardCharsets.UTF_8)));
+                List.of(new IngredientTools(INGREDIENTS), new IngredientEditTools(INGREDIENTS), RECIPE_TOOLS,
+                        UTENSIL_TOOLS, PROFILE_TOOLS),
+                events::add, new ByteArrayResource("PROMPT SYSTEME CHAT".getBytes(StandardCharsets.UTF_8)));
     }
 
     private static AssistantMessage toolCall(String arguments) {
@@ -171,9 +175,9 @@ class ChatAssistantTest {
         assertThat(texts(prompt, MessageType.USER)).containsExactly("Bonjour");
         assertThat(prompt.getOptions()).isInstanceOfSatisfying(ToolCallingChatOptions.class,
                 options -> assertThat(options.getToolCallbacks())
-                        .extracting(callback -> callback.getToolDefinition().name())
-                        .containsExactlyInAnyOrder("listerIngredients", "genererRecette", "listUtensils", "addUtensil",
-                                "removeUtensil", "consulterPreferences"));
+                        .extracting(callback -> callback.getToolDefinition().name()).containsExactlyInAnyOrder(
+                                "listerIngredients", "genererRecette", "listUtensils", "addUtensil", "removeUtensil",
+                                "consulterPreferences", "ajouterAliment", "modifierQuantite", "retirerAliments"));
     }
 
     @Test

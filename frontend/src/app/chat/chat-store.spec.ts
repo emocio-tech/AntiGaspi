@@ -1,6 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { InventoryStore } from '../inventory/inventory-store';
 import { ChatStore } from './chat-store';
 
 describe('ChatStore', () => {
@@ -130,5 +131,35 @@ describe('ChatStore', () => {
 
     expect(store.messages().length).toBe(2);
     expect(store.error()).toBe('boom');
+  });
+
+  describe('rechargement de l’inventaire', () => {
+    beforeEach(() => {
+      // Instancie l'inventaire comme le fait la navigation, puis laisse partir sa requête de départ
+      TestBed.inject(InventoryStore);
+      TestBed.tick();
+      http.expectOne('/api/ingredients').flush([]);
+    });
+
+    it.each(['ajouterAliment', 'modifierQuantite', 'retirerAliments'])(
+      'recharge l’inventaire quand la réponse contient le tool %s',
+      (outil) => {
+        store.send('Ajoute du lait');
+        http.expectOne('/api/chat').flush(reponse('C’est fait.', [{ name: outil, arguments: '{}' }]));
+
+        TestBed.tick();
+
+        http.expectOne({ method: 'GET', url: '/api/ingredients' }).flush([]);
+      },
+    );
+
+    it('ne recharge rien quand la réponse n’a pas de tool d’écriture', () => {
+      store.send('Qu’est-ce qui périme ?');
+      http.expectOne('/api/chat').flush(reponse('Les courgettes.', [{ name: 'listerIngredients', arguments: '{}' }]));
+
+      TestBed.tick();
+
+      http.expectNone('/api/ingredients');
+    });
   });
 });

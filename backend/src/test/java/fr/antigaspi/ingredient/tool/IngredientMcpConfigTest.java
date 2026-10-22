@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
-import java.util.List;
+import fr.antigaspi.ingredient.repository.InMemoryIngredientRepository;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.tool.ToolCallback;
@@ -17,8 +17,8 @@ class IngredientMcpConfigTest {
 
     @Test
     void serveurMcp_exposeUniquementListerIngredients() {
-        IngredientTools tools = new IngredientTools(
-                new IngredientService(List::of, Clock.fixed(Instant.parse("2026-10-20T10:00:00Z"), ZoneOffset.UTC)));
+        IngredientTools tools = new IngredientTools(new IngredientService(new InMemoryIngredientRepository(),
+                Clock.fixed(Instant.parse("2026-10-20T10:00:00Z"), ZoneOffset.UTC)));
 
         ToolCallbackProvider provider = new IngredientMcpConfig().ingredientToolCallbackProvider(tools);
 

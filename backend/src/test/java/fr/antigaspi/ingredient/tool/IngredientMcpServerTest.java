@@ -26,6 +26,7 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.test.context.ActiveProfiles;
 
 import fr.antigaspi.ingredient.model.Category;
+import fr.antigaspi.ingredient.repository.InMemoryIngredientRepository;
 import fr.antigaspi.ingredient.model.Ingredient;
 import fr.antigaspi.ingredient.model.Unit;
 import fr.antigaspi.ingredient.service.IngredientService;
@@ -45,8 +46,8 @@ class IngredientMcpServerTest {
     private static final LocalDate TODAY = LocalDate.of(2026, 10, 20);
     private static final JsonMapper MAPPER = JsonMapper.builder().build();
 
-    /** Inventaire servi au test en cours (ordre d'entrée volontairement différent de l'ordre d'urgence). */
-    private static volatile List<Ingredient> inventaire;
+    /** Inventaire en mémoire servi au test en cours (ordre d'entrée volontairement différent de l'ordre d'urgence). */
+    private static final InMemoryIngredientRepository inventaire = new InMemoryIngredientRepository();
 
     @TestConfiguration
     static class InventaireDeTest {
@@ -54,7 +55,7 @@ class IngredientMcpServerTest {
         @Bean
         @Primary
         IngredientService ingredientServiceDeTest() {
-            return new IngredientService(() -> inventaire, Clock.fixed(NOW, ZoneOffset.UTC));
+            return new IngredientService(inventaire, Clock.fixed(NOW, ZoneOffset.UTC));
         }
     }
 
@@ -66,7 +67,7 @@ class IngredientMcpServerTest {
 
     @BeforeEach
     void inventaireParDefaut() {
-        inventaire = List.of(
+        inventaire.replaceAll(
                 new Ingredient(1L, "Yaourts", Category.PRODUITS_LAITIERS, new BigDecimal("4"), Unit.PIECE,
                         TODAY.plusDays(10), NOW),
                 new Ingredient(2L, "Courgettes", Category.LEGUMES, new BigDecimal("2.5"), Unit.KG, TODAY.plusDays(2),
@@ -102,7 +103,7 @@ class IngredientMcpServerTest {
 
     @Test
     void toolsCall_inventaireVide_renvoieUneListeVideSansErreur() throws Exception {
-        inventaire = List.of();
+        inventaire.replaceAll();
         initialiserSession();
 
         JsonNode result = appelerLister("{}");

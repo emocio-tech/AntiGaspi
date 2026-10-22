@@ -43,7 +43,7 @@ Un ingrédient est stocké en base avec :
 
   Une date **estimée** (pas de date saisie) est signalée comme telle dans l'interface.
 - **Modifiable** depuis l'interface **et** via le MCP (ajout, modification, suppression).
-- **Évolution** : liste **statique** au départ (données d'amorçage), puis **dynamique** (CRUD complet).
+- **Évolution** : liste **dynamique** en base (données d'amorçage au premier démarrage) : ajout en rafale après les courses, modification, suppression rapide de plusieurs aliments (annulable quelques secondes), et les mêmes opérations par le chat (« j'ai fini le lait »). Le serveur MCP reste en lecture seule pour l'instant.
 - **Plus tard** (gardé en réserve) : mise à jour par **scan des courses** (code-barres / ticket, ex. Open Food Facts).
 
 ### 2. Génération de recettes par LLM

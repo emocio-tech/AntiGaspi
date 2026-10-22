@@ -17,6 +17,7 @@ import org.springframework.ai.support.ToolCallbacks;
 import org.springframework.ai.tool.ToolCallback;
 
 import fr.antigaspi.ingredient.model.Category;
+import fr.antigaspi.ingredient.repository.InMemoryIngredientRepository;
 import fr.antigaspi.ingredient.model.Ingredient;
 import fr.antigaspi.ingredient.model.IngredientView;
 import fr.antigaspi.ingredient.model.Unit;
@@ -54,15 +55,16 @@ class RecipeToolsTest {
     /** Réponse du faux générateur ; une exception est levée telle quelle. */
     private final AtomicReference<Object> llmAnswer = new AtomicReference<>(recipe(3L));
 
-    private final RecipeTools tools = new RecipeTools(
-            new RecipeService(new IngredientService(() -> INVENTORY, Clock.fixed(NOW, ZoneOffset.UTC)),
-                    new UtensilService(new InMemoryUtensilRepository()), mock(ProfileService.class), context -> {
-                        receivedContext.set(context);
-                        if (llmAnswer.get() instanceof RuntimeException e) {
-                            throw e;
-                        }
-                        return (Recipe) llmAnswer.get();
-                    }, new RecipeChecker(), new RecipeProperties(8, 2)));
+    private final RecipeTools tools = new RecipeTools(new RecipeService(
+            new IngredientService(new InMemoryIngredientRepository(INVENTORY.toArray(Ingredient[]::new)),
+                    Clock.fixed(NOW, ZoneOffset.UTC)),
+            new UtensilService(new InMemoryUtensilRepository()), mock(ProfileService.class), context -> {
+                receivedContext.set(context);
+                if (llmAnswer.get() instanceof RuntimeException e) {
+                    throw e;
+                }
+                return (Recipe) llmAnswer.get();
+            }, new RecipeChecker(), new RecipeProperties(8, 2)));
 
     private static Recipe recipe(Long courgettesId) {
         return new Recipe("Courgettes sautées", 2, 15, List.of("Poêle"),
