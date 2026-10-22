@@ -41,3 +41,5 @@ antigaspi:
     # Nombre d'aliments les plus urgents envoyés au LLM quand aucun n'est choisi
     max-ingredients: 8
     default-servings: 2
+    # Nombre de recettes cuisinées récemment (avec avis) rappelées au LLM
+    feedback-count: 5

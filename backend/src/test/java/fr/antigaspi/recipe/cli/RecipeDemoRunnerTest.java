@@ -48,7 +48,7 @@ class RecipeDemoRunnerTest {
             Clock.fixed(RecipeFixtures.NOW, ZoneOffset.UTC));
 
     private String run() {
-        RecipeDemoRunner runner = new RecipeDemoRunner(ingredientService, recipeService, new RecipeProperties(8, 2),
+        RecipeDemoRunner runner = new RecipeDemoRunner(ingredientService, recipeService, new RecipeProperties(8, 2, 5),
                 new PrintStream(output, true, StandardCharsets.UTF_8));
         runner.run(null);
         return output.toString(StandardCharsets.UTF_8);

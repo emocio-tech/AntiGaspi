@@ -44,6 +44,8 @@ import fr.antigaspi.ingredient.tool.IngredientTools;
 import fr.antigaspi.profile.model.UserProfile;
 import fr.antigaspi.profile.service.ProfileService;
 import fr.antigaspi.profile.tool.ProfileTools;
+import fr.antigaspi.recipe.repository.InMemoryCookedRecipeRepository;
+import fr.antigaspi.recipe.service.CookingService;
 import fr.antigaspi.recipe.service.RecipeChecker;
 import fr.antigaspi.recipe.service.RecipeProperties;
 import fr.antigaspi.recipe.service.RecipeService;
@@ -62,9 +64,10 @@ class ChatAssistantTest {
                     Unit.KG, LocalDate.of(2026, 10, 22), NOW)),
             Clock.fixed(NOW, ZoneOffset.UTC));
 
-    private static final RecipeTools RECIPE_TOOLS = new RecipeTools(
-            new RecipeService(INGREDIENTS, new UtensilService(new InMemoryUtensilRepository()),
-                    mock(ProfileService.class), context -> null, new RecipeChecker(), new RecipeProperties(8, 2)));
+    private static final RecipeTools RECIPE_TOOLS = new RecipeTools(new RecipeService(INGREDIENTS,
+            new UtensilService(new InMemoryUtensilRepository()), mock(ProfileService.class),
+            new CookingService(INGREDIENTS, new InMemoryCookedRecipeRepository(), Clock.fixed(NOW, ZoneOffset.UTC)),
+            context -> null, new RecipeChecker(), new RecipeProperties(8, 2, 5)));
 
     private static final UtensilTools UTENSIL_TOOLS = new UtensilTools(
             new UtensilService(new InMemoryUtensilRepository(new Utensil(1L, "Four"))));

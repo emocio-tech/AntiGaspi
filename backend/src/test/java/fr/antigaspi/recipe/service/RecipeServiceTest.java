@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,14 +26,17 @@ import fr.antigaspi.profile.model.UserProfile;
 import fr.antigaspi.profile.service.ProfileService;
 import fr.antigaspi.recipe.RecipeFixtures;
 import fr.antigaspi.recipe.llm.RecipeGenerator;
+import fr.antigaspi.recipe.model.CookedRecipe;
 import fr.antigaspi.recipe.model.DishType;
 import fr.antigaspi.recipe.model.GeneratedRecipe;
 import fr.antigaspi.recipe.model.Recipe;
+import fr.antigaspi.recipe.model.Rating;
 import fr.antigaspi.recipe.model.RecipeContext;
 import fr.antigaspi.recipe.model.RecipeIngredient;
 import fr.antigaspi.recipe.model.RecipeIssue;
 import fr.antigaspi.recipe.model.RecipeIssueType;
 import fr.antigaspi.recipe.model.RecipeRequest;
+import fr.antigaspi.recipe.repository.InMemoryCookedRecipeRepository;
 import fr.antigaspi.utensil.model.Utensil;
 import fr.antigaspi.utensil.repository.InMemoryUtensilRepository;
 import fr.antigaspi.utensil.service.UtensilService;
@@ -76,12 +80,17 @@ class RecipeServiceTest {
     }
 
     private RecipeService service(Ingredient... ingredients) {
+        return service(new InMemoryCookedRecipeRepository(), 3, ingredients);
+    }
+
+    private RecipeService service(InMemoryCookedRecipeRepository cooked, int feedbackCount, Ingredient... ingredients) {
         IngredientService ingredientService = new IngredientService(new InMemoryIngredientRepository(ingredients),
                 CLOCK);
+        CookingService cookingService = new CookingService(ingredientService, cooked, CLOCK);
         UtensilService utensilService = new UtensilService(
                 new InMemoryUtensilRepository(UTENSILS.toArray(Utensil[]::new)));
-        return new RecipeService(ingredientService, utensilService, profileService, generator, new RecipeChecker(),
-                new RecipeProperties(2, 3));
+        return new RecipeService(ingredientService, utensilService, profileService, cookingService, generator,
+                new RecipeChecker(), new RecipeProperties(2, 3, feedbackCount));
     }
 
     private List<String> priorityNames() {
@@ -261,5 +270,29 @@ class RecipeServiceTest {
 
         assertThat(generated.issues()).extracting(RecipeIssue::type)
                 .containsExactly(RecipeIssueType.USTENSILE_INDISPONIBLE);
+    }
+
+    @Test
+    void generation_fournitLesRecettesCuisineesRecentesAuGenerateur() {
+        InMemoryCookedRecipeRepository cooked = new InMemoryCookedRecipeRepository(
+                cookedRecipe(1, "Soupe", "2026-10-17T12:00:00Z"), cookedRecipe(3, "Curry", "2026-10-19T12:00:00Z"),
+                cookedRecipe(2, "Gratin", "2026-10-18T12:00:00Z"));
+
+        service(cooked, 2, ingredient(1, "Courgettes", 1)).generate(RecipeRequest.mostUrgent());
+
+        assertThat(receivedContext.get().recentlyCooked()).extracting(item -> item.recipe().title())
+                .containsExactly("Curry", "Gratin");
+    }
+
+    @Test
+    void generation_sansRecetteCuisinee_contexteSansRecetteRecente() {
+        service(ingredient(1, "Courgettes", 1)).generate(RecipeRequest.mostUrgent());
+
+        assertThat(receivedContext.get().recentlyCooked()).isEmpty();
+    }
+
+    private static CookedRecipe cookedRecipe(long id, String title, String cookedAt) {
+        return new CookedRecipe(id, new Recipe(title, 2, 30, List.of(), List.of(), List.of()), Instant.parse(cookedAt),
+                Rating.UP, null);
     }
 }

@@ -59,6 +59,12 @@ class CookedRecipeEntity {
         this.comment = recipe.comment();
     }
 
+    /** Remplace l'avis et le commentaire ; la recette et la date sont inchangées. */
+    void updateFeedback(Rating rating, String comment) {
+        this.rating = rating;
+        this.comment = comment;
+    }
+
     /** Recette cuisinée correspondant à cette ligne ; la recette est relue depuis le JSON. */
     CookedRecipe toCookedRecipe() {
         return new CookedRecipe(id, MAPPER.readValue(content, Recipe.class), cookedAt, rating, comment);

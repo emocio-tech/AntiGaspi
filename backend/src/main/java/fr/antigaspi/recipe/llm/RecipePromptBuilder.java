@@ -1,5 +1,6 @@
 package fr.antigaspi.recipe.llm;
 
+import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -12,7 +13,9 @@ import fr.antigaspi.common.Resources;
 
 import fr.antigaspi.ingredient.model.Ingredient;
 import fr.antigaspi.ingredient.model.IngredientView;
+import fr.antigaspi.recipe.model.CookedRecipe;
 import fr.antigaspi.recipe.model.DishType;
+import fr.antigaspi.recipe.model.Rating;
 import fr.antigaspi.recipe.model.RecipeContext;
 import fr.antigaspi.utensil.model.Utensil;
 
@@ -25,6 +28,8 @@ import fr.antigaspi.utensil.model.Utensil;
  */
 @Component
 public class RecipePromptBuilder {
+
+    private static final int MAX_COMMENT_CHARS = 200;
 
     private final String systemPrompt;
 
@@ -58,7 +63,36 @@ public class RecipePromptBuilder {
         appendList(prompt, "Ustensiles disponibles", context.utensils().stream().map(Utensil::name).toList(),
                 "non renseignés");
         appendList(prompt, "Préférences", context.profile().preferences(), "aucune");
+        appendRecentlyCooked(prompt, context.recentlyCooked());
         return prompt.toString();
+    }
+
+    /** Une ligne par recette cuisinée récemment : date, titre, avis et commentaire s'ils existent. */
+    private static void appendRecentlyCooked(StringBuilder prompt, List<CookedRecipe> recentlyCooked) {
+        if (recentlyCooked == null || recentlyCooked.isEmpty()) {
+            return;
+        }
+        prompt.append("\nRecettes cuisinées récemment, de la plus récente à la plus ancienne :\n");
+        for (CookedRecipe cooked : recentlyCooked) {
+            prompt.append("- ").append(cooked.cookedAt().atZone(ZoneOffset.UTC).toLocalDate()).append(" · ")
+                    .append(oneLine(cooked.recipe().title()));
+            if (cooked.rating() != null) {
+                prompt.append(" · ").append(cooked.rating() == Rating.UP ? "👍" : "👎");
+            }
+            if (cooked.comment() != null && !cooked.comment().isBlank()) {
+                prompt.append(" · « ").append(oneLine(cooked.comment())).append(" »");
+            }
+            prompt.append('\n');
+        }
+    }
+
+    /**
+     * Texte de l'utilisateur (titre, commentaire) sur une ligne, blancs consécutifs ramenés à un espace, tronqué à 200
+     * caractères : il ne peut pas ajouter de ligne ni de section au prompt.
+     */
+    private static String oneLine(String text) {
+        String line = text.strip().replaceAll("\\s+", " ");
+        return line.length() > MAX_COMMENT_CHARS ? line.substring(0, MAX_COMMENT_CHARS) + "…" : line;
     }
 
     /** Aliment principal et type de plat imposés à une variante ; rien sans variante. */

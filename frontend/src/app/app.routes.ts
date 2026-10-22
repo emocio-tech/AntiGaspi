@@ -27,5 +27,10 @@ export const routes: Routes = [
     title: 'Profil · antigaspi',
     loadComponent: () => import('./profile/profile-page').then((m) => m.ProfilePage),
   },
+  {
+    path: 'historique',
+    title: 'Historique · antigaspi',
+    loadComponent: () => import('./history/history-page').then((m) => m.HistoryPage),
+  },
   { path: '**', redirectTo: 'inventaire' },
 ];

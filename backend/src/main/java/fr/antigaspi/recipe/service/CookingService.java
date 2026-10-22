@@ -74,4 +74,38 @@ public class CookingService {
         ingredientService.consume(used);
         return repository.save(new CookedRecipe(null, recipe, clock.instant(), rating, cleanedComment));
     }
+
+    /** Historique des recettes cuisinées, de la plus récente à la plus ancienne. */
+    public List<CookedRecipe> history() {
+        return repository.findAllMostRecentFirst();
+    }
+
+    /**
+     * Modifie l'avis et le commentaire d'une recette cuisinée ; la date et la recette sont inchangées.
+     *
+     * @param rating
+     *            nouvel avis, {@code null} pour l'effacer
+     * @param comment
+     *            nouveau commentaire, {@code null} ou blanc pour l'effacer
+     *
+     * @throws CookedRecipeNotFoundException
+     *             si l'identifiant est inconnu
+     * @throws IllegalArgumentException
+     *             si le commentaire dépasse 1000 caractères
+     */
+    @Transactional
+    public CookedRecipe updateFeedback(long id, Rating rating, String comment) {
+        String cleanedComment = comment == null || comment.isBlank() ? null : comment.strip();
+        if (cleanedComment != null && cleanedComment.length() > MAX_COMMENT_LENGTH) {
+            throw new IllegalArgumentException("Le commentaire dépasse " + MAX_COMMENT_LENGTH + " caractères");
+        }
+        CookedRecipe existing = repository.findById(id).orElseThrow(() -> new CookedRecipeNotFoundException(id));
+        return repository
+                .save(new CookedRecipe(existing.id(), existing.recipe(), existing.cookedAt(), rating, cleanedComment));
+    }
+
+    /** Les {@code limit} recettes cuisinées les plus récentes, de la plus récente à la plus ancienne. */
+    public List<CookedRecipe> recent(int limit) {
+        return repository.findMostRecent(limit);
+    }
 }

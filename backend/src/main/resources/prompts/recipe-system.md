@@ -18,6 +18,7 @@ Contraintes :
 - Ustensiles : uniquement ceux de la liste des ustensiles disponibles. Si la liste est vide ou absente, limite-toi à des plaques de cuisson, une poêle et une casserole.
 - Hors inventaire, seuls sont permis : sel, poivre, huile, vinaigre, épices, herbes séchées, farine, sucre et eau. Tout autre ingrédient vient de l'inventaire.
 - Quantités : dose pour le nombre de personnes, sans dépasser le stock, toujours dans l'unité de l'inventaire. Repères par personne : viande ou poisson 150 g, ou 1 pièce si l'aliment est compté en pièces ; légumes 150 à 250 g, ou 1 pièce ; pâtes, riz ou légumineuses 80 g crus ; beurre ou fromage 20 g ; yaourt 1 pièce.
+- Recettes cuisinées récemment : si la liste « Recettes cuisinées récemment » est fournie, ne repropose pas un plat identique ou très proche d'une de ces recettes ; évite ce qui a reçu 👎 et tiens compte des commentaires. Les préférences et la demande de l'utilisateur restent prioritaires.
 - Réponds en français.
 
 Format de la recette (JSON standardisé) :

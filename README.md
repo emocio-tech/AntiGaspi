@@ -4,7 +4,7 @@ Application web anti-gaspillage alimentaire : on suit les ingrédients de son fr
 
 **Contexte** : projet de formation réalisé à trois. Objectif : une application **minimaliste** qui intègre un **LLM** et un **serveur MCP**.
 
-> Statut : **socle backend** : inventaire statique, profil Markdown, génération de recette par LLM au niveau service, et démo de chat dont le LLM appelle des tools (inventaire, ustensiles, préférences, génération de recette contrôlée), et serveur MCP (Streamable HTTP, tool `listerIngredients`) (voir [docs/plans/2026-10-20-socle-inventaire-recette.md](docs/plans/2026-10-20-socle-inventaire-recette.md)).
+> Statut : **appli complète en local** (`docker compose up -d --build`) : inventaire en base PostgreSQL modifiable (ajout en rafale, édition, retrait groupé), 3 recettes divergentes générées par le LLM, « J'ai cuisiné » qui décrémente le stock, historique des recettes cuisinées avec avis et commentaires (repris dans le prompt), profil Markdown, chat avec le chef (tools inventaire, ustensiles, préférences, recettes ; réponses en Markdown) et serveur MCP en lecture (tool `listerIngredients`).
 
 ## Sommaire
 - [Fonctionnalités](#fonctionnalités)
@@ -56,7 +56,7 @@ Un ingrédient est stocké en base avec :
 Après avoir réalisé une recette, un **écran de confirmation** liste les ingrédients utilisés avec les quantités **préremplies et modifiables** (si la recette a été adaptée). À la validation, les quantités sont décrémentées et les ingrédients épuisés sont supprimés. Les quantités sont préremplies dans l'unité de l'inventaire (g ↔ kg et ml ↔ l convertis ; sinon champ vide à compléter). On peut aussi donner un avis 👍/👎 et un commentaire facultatifs : la recette cuisinée est enregistrée en base avec son avis.
 
 ### 4. Profil utilisateur (`.md`) et feedback
-Chaque utilisateur a un fichier Markdown de profil (préférences alimentaires, historique des retours), lu par le LLM à chaque génération. Il est **modifiable par l'utilisateur** (interface et MCP).
+Chaque utilisateur a un fichier Markdown de profil (préférences alimentaires), lu par le LLM à chaque génération. Il est **modifiable par l'utilisateur** depuis l'écran Profil.
 
 > Les **ustensiles disponibles** ne sont **pas** dans le profil : ils sont stockés en base (table `utensil`), modifiables par l'utilisateur, par exemple en cas de déménagement ou d'appareil cassé.
 
@@ -66,17 +66,14 @@ Chaque utilisateur a un fichier Markdown de profil (préférences alimentaires, 
 ## Préférences
 - N'aime pas les plats épicés
 - Végétarien le midi
-
-## Historique des retours
-- 2026-10-19 · Curry de légumes · 👎 · « trop épicé »
 ```
 
 **Boucle de feedback** :
-1. Après une recette, l'utilisateur donne un retour : appréciée ou non, bonne idée ou non, commentaire libre.
-2. Le retour brut est ajouté à la section **Historique des retours**.
-3. Le LLM **consolide** la section **Préférences** (synthèse courte, sans doublons ni contradictions).
+1. Sur l'écran « J'ai cuisiné », l'utilisateur peut donner un avis 👍/👎 et un commentaire libre, tous deux facultatifs. Ils sont enregistrés en base avec la recette cuisinée (table `cooked_recipe`).
+2. L'écran **Historique** liste les recettes cuisinées, plus récentes d'abord : on peut déplier la recette et modifier l'avis ou le commentaire après coup.
+3. À chaque génération, les **5 dernières** recettes cuisinées (`antigaspi.recipe.feedback-count`) sont ajoutées au prompt, par exemple `- 2026-10-19 · Curry de légumes · 👎 · « trop épicé »`. Le LLM évite de reproposer un plat récent ou ce qui a déplu ; les préférences du profil restent prioritaires.
 
-> Le feedback n'est **pas** stocké en base : le `.md` suffit.
+> Les préférences du profil ne sont pas modifiées automatiquement par les retours.
 
 ### 5. Serveur MCP
 Un serveur [MCP (Model Context Protocol)](https://modelcontextprotocol.io) intégré au backend expose les fonctionnalités de l'application à un assistant compatible (Claude Desktop, Claude Code…). Il réutilise les mêmes services métier que l'API REST.
@@ -110,7 +107,7 @@ Deux usages possibles : Claude appelle `generate_recipe` (génération par le LL
 
 ### 6. Interface utilisateur
 - **Web app Angular**, minimaliste et **responsive (mobile-first)** : elle doit fonctionner correctement sur ordinateur et sur téléphone.
-- Trois écrans : **Inventaire**, **Recettes**, **Profil**.
+- Quatre écrans : **Inventaire**, **Recettes** (avec le chat et l'écran « J'ai cuisiné »), **Historique**, **Profil**.
 - Design à valider avec le maquettage : voir [docs/maquettes/](docs/maquettes/).
 
 ## Stack technique
@@ -134,8 +131,8 @@ flowchart LR
     MCPC["Client MCP<br/>(Claude…)"] -->|MCP| MCPS["Serveur MCP"]
     API --> SVC["Services métier<br/>inventaire · ustensiles · recettes · profil"]
     MCPS --> SVC
-    SVC --> DB[("PostgreSQL<br/>ingrédients · ustensiles")]
-    SVC --> MD["data/profil.md<br/>préférences · retours"]
+    SVC --> DB[("PostgreSQL<br/>ingrédients · ustensiles · recettes cuisinées")]
+    SVC --> MD["data/profil.md<br/>préférences"]
     SVC --> LLM["LLM via Spring AI<br/>Nova Lite (proxy OpenAI) par défaut"]
 ```
 

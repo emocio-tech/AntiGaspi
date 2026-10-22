@@ -23,14 +23,25 @@ import fr.antigaspi.utensil.model.Utensil;
  *            aliment principal imposé à cette variante, {@code null} si aucun
  * @param imposedDishType
  *            type de plat imposé à cette variante, {@code null} sans variante
+ * @param recentlyCooked
+ *            recettes cuisinées récemment, de la plus récente à la plus ancienne, avec avis et commentaire
  */
 public record RecipeContext(List<IngredientView> priorityIngredients, List<IngredientView> otherIngredients,
         List<Utensil> utensils, UserProfile profile, int servings, Integer maxMinutes, String instructions,
-        IngredientView imposedMain, DishType imposedDishType) {
+        IngredientView imposedMain, DishType imposedDishType, List<CookedRecipe> recentlyCooked) {
 
-    /** Contexte sans variante. */
+    /** Contexte sans variante ni recette cuisinée récemment. */
     public RecipeContext(List<IngredientView> priorityIngredients, List<IngredientView> otherIngredients,
             List<Utensil> utensils, UserProfile profile, int servings, Integer maxMinutes, String instructions) {
-        this(priorityIngredients, otherIngredients, utensils, profile, servings, maxMinutes, instructions, null, null);
+        this(priorityIngredients, otherIngredients, utensils, profile, servings, maxMinutes, instructions, null, null,
+                List.of());
+    }
+
+    /** Contexte avec variante, sans recette cuisinée récemment. */
+    public RecipeContext(List<IngredientView> priorityIngredients, List<IngredientView> otherIngredients,
+            List<Utensil> utensils, UserProfile profile, int servings, Integer maxMinutes, String instructions,
+            IngredientView imposedMain, DishType imposedDishType) {
+        this(priorityIngredients, otherIngredients, utensils, profile, servings, maxMinutes, instructions, imposedMain,
+                imposedDishType, List.of());
     }
 }

@@ -32,16 +32,18 @@ public class RecipeService {
     private final IngredientService ingredientService;
     private final UtensilService utensilService;
     private final ProfileService profileService;
+    private final CookingService cookingService;
     private final RecipeGenerator recipeGenerator;
     private final RecipeChecker recipeChecker;
     private final RecipeProperties properties;
 
     public RecipeService(IngredientService ingredientService, UtensilService utensilService,
-            ProfileService profileService, RecipeGenerator recipeGenerator, RecipeChecker recipeChecker,
-            RecipeProperties properties) {
+            ProfileService profileService, CookingService cookingService, RecipeGenerator recipeGenerator,
+            RecipeChecker recipeChecker, RecipeProperties properties) {
         this.ingredientService = ingredientService;
         this.utensilService = utensilService;
         this.profileService = profileService;
+        this.cookingService = cookingService;
         this.recipeGenerator = recipeGenerator;
         this.recipeChecker = recipeChecker;
         this.properties = properties;
@@ -88,9 +90,9 @@ public class RecipeService {
             imposedMain = candidates.isEmpty() ? null : candidates.get(variant % candidates.size());
             imposedDishType = DishType.values()[variant];
         }
-        Recipe recipe = recipeGenerator
-                .generate(new RecipeContext(priority, others, utensils, profileService.getProfile(), servings,
-                        maxMinutes, effectiveRequest.instructions(), imposedMain, imposedDishType));
+        Recipe recipe = recipeGenerator.generate(new RecipeContext(priority, others, utensils,
+                profileService.getProfile(), servings, maxMinutes, effectiveRequest.instructions(), imposedMain,
+                imposedDishType, cookingService.recent(properties.feedbackCount())));
         return recipeChecker.check(recipe, inventory.stream().map(IngredientView::ingredient).toList(), utensils);
     }
 

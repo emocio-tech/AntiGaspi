@@ -29,6 +29,9 @@ import fr.antigaspi.recipe.model.RecipeContext;
 import fr.antigaspi.recipe.model.RecipeIngredient;
 import fr.antigaspi.recipe.model.RecipeIssue;
 import fr.antigaspi.recipe.model.RecipeIssueType;
+import fr.antigaspi.recipe.repository.InMemoryCookedRecipeRepository;
+import fr.antigaspi.recipe.service.CookingService;
+import fr.antigaspi.recipe.service.CookingService;
 import fr.antigaspi.recipe.service.RecipeChecker;
 import fr.antigaspi.recipe.service.RecipeProperties;
 import fr.antigaspi.recipe.service.RecipeService;
@@ -55,16 +58,20 @@ class RecipeToolsTest {
     /** Réponse du faux générateur ; une exception est levée telle quelle. */
     private final AtomicReference<Object> llmAnswer = new AtomicReference<>(recipe(3L));
 
-    private final RecipeTools tools = new RecipeTools(new RecipeService(
-            new IngredientService(new InMemoryIngredientRepository(INVENTORY.toArray(Ingredient[]::new)),
-                    Clock.fixed(NOW, ZoneOffset.UTC)),
-            new UtensilService(new InMemoryUtensilRepository()), mock(ProfileService.class), context -> {
-                receivedContext.set(context);
-                if (llmAnswer.get() instanceof RuntimeException e) {
-                    throw e;
-                }
-                return (Recipe) llmAnswer.get();
-            }, new RecipeChecker(), new RecipeProperties(8, 2)));
+    private final IngredientService ingredientService = new IngredientService(
+            new InMemoryIngredientRepository(INVENTORY.toArray(Ingredient[]::new)), Clock.fixed(NOW, ZoneOffset.UTC));
+
+    private final RecipeTools tools = new RecipeTools(
+            new RecipeService(ingredientService, new UtensilService(new InMemoryUtensilRepository()),
+                    mock(ProfileService.class), new CookingService(ingredientService,
+                            new InMemoryCookedRecipeRepository(), Clock.fixed(NOW, ZoneOffset.UTC)),
+                    context -> {
+                        receivedContext.set(context);
+                        if (llmAnswer.get() instanceof RuntimeException e) {
+                            throw e;
+                        }
+                        return (Recipe) llmAnswer.get();
+                    }, new RecipeChecker(), new RecipeProperties(8, 2, 5)));
 
     private static Recipe recipe(Long courgettesId) {
         return new Recipe("Courgettes sautées", 2, 15, List.of("Poêle"),

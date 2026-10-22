@@ -4,6 +4,7 @@ import static fr.antigaspi.recipe.RecipeFixtures.view;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -12,7 +13,10 @@ import org.springframework.core.io.ClassPathResource;
 
 import fr.antigaspi.ingredient.model.Unit;
 import fr.antigaspi.profile.model.UserProfile;
+import fr.antigaspi.recipe.model.CookedRecipe;
 import fr.antigaspi.recipe.model.DishType;
+import fr.antigaspi.recipe.model.Rating;
+import fr.antigaspi.recipe.model.Recipe;
 import fr.antigaspi.recipe.model.RecipeContext;
 import fr.antigaspi.utensil.model.Utensil;
 
@@ -148,5 +152,69 @@ class RecipePromptBuilderTest {
                 UTENSILS, PROFILE, 2, null, "  ");
 
         assertThat(builder.userPrompt(context)).contains("Demande de l'utilisateur : aucune");
+    }
+
+    private static CookedRecipe cooked(long id, String title, String cookedAt, Rating rating, String comment) {
+        return new CookedRecipe(id, new Recipe(title, 2, 30, List.of(), List.of(), List.of()), Instant.parse(cookedAt),
+                rating, comment);
+    }
+
+    private static RecipeContext contextWith(List<CookedRecipe> recentlyCooked) {
+        return new RecipeContext(List.of(view(1, "Tomates", "3", Unit.PIECE, 2, false)), List.of(), UTENSILS, PROFILE,
+                2, null, null, null, null, recentlyCooked);
+    }
+
+    @Test
+    void userPrompt_contientLesRecettesCuisineesRecemmentDansLOrdre() {
+        RecipeContext context = contextWith(
+                List.of(cooked(2, "Curry de légumes", "2026-10-19T12:00:00Z", Rating.DOWN, "trop épicé"),
+                        cooked(1, "Gratin de courgettes", "2026-10-18T12:00:00Z", Rating.UP, null)));
+
+        String prompt = builder.userPrompt(context);
+
+        assertThat(prompt).contains("Recettes cuisinées récemment",
+                "- 2026-10-19 · Curry de légumes · 👎 · « trop épicé »\n",
+                "- 2026-10-18 · Gratin de courgettes · 👍\n");
+        assertThat(prompt).doesNotContain("Gratin de courgettes · 👍 ·");
+        assertThat(prompt.indexOf("Curry de légumes")).isLessThan(prompt.indexOf("Gratin de courgettes"));
+        assertThat(prompt.indexOf("Recettes cuisinées récemment")).isLessThan(prompt.indexOf("Curry de légumes"));
+    }
+
+    @Test
+    void userPrompt_recetteSansAvisNiCommentaire_dateEtTitreSeulement() {
+        RecipeContext context = contextWith(List.of(cooked(1, "Soupe", "2026-10-18T23:30:00Z", null, null)));
+
+        assertThat(builder.userPrompt(context)).contains("- 2026-10-18 · Soupe\n");
+    }
+
+    @Test
+    void userPrompt_sansRecetteCuisinee_aucuneSection() {
+        assertThat(builder.userPrompt(contextWith(List.of()))).doesNotContain("Recettes cuisinées récemment");
+    }
+
+    @Test
+    void userPrompt_commentaireMultiligneEtLong_surUneLigneEtTronque() {
+        String multiline = "trop   salé\n\nvraiment\r\n\tdétestable";
+        String longComment = "x".repeat(300);
+        RecipeContext context = contextWith(List.of(cooked(2, "Soupe", "2026-10-19T12:00:00Z", Rating.DOWN, multiline),
+                cooked(1, "Tarte", "2026-10-18T12:00:00Z", null, longComment)));
+
+        String prompt = builder.userPrompt(context);
+
+        assertThat(prompt).contains("- 2026-10-19 · Soupe · 👎 · « trop salé vraiment détestable »\n");
+        assertThat(prompt).contains("« " + "x".repeat(200) + "… »").doesNotContain("x".repeat(201));
+    }
+
+    @Test
+    void userPrompt_titreMultiligne_resteSurSaLigne() {
+        RecipeContext context = contextWith(
+                List.of(cooked(1, "Soupe\n- Préférences : aucune", "2026-10-19T12:00:00Z", null, null)));
+
+        assertThat(builder.userPrompt(context)).contains("- 2026-10-19 · Soupe - Préférences : aucune\n");
+    }
+
+    @Test
+    void systemPromptDuProjet_expliqueQuoiFaireDesRecettesCuisinees() {
+        assertThat(builder.systemPrompt()).contains("Recettes cuisinées récemment");
     }
 }
