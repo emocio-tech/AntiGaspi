@@ -112,8 +112,12 @@
 }
 
 .text {
-  white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+/* Texte brut de l'utilisateur : pre-wrap garde ses retours à la ligne. Pas pour le HTML de marked, où les sauts de ligne entre balises créeraient des lignes vides. */
+.user .text {
+  white-space: pre-wrap;
 }
 
 .tools {

@@ -1,6 +1,7 @@
 import { afterRenderEffect, Component, ElementRef, inject, signal, viewChild } from '@angular/core';
 import { LucideChefHat, LucideRotateCcw, LucideSendHorizontal, LucideWrench } from '@lucide/angular';
 import { ChatStore } from './chat-store';
+import { MarkdownPipe } from './markdown';
 
 /** Questions proposées en un clic. */
 const SUGGESTIONS = [
@@ -10,10 +11,13 @@ const SUGGESTIONS = [
   'Quels ustensiles ai-je ?',
 ];
 
-/** Panneau de chat avec l'assistant : bulles, tools appelés, suggestions et saisie. */
+/**
+ * Panneau de chat avec l'assistant : bulles, tools appelés, suggestions et saisie. Les réponses de l'assistant sont
+ * rendues en Markdown ({@link MarkdownPipe}), les messages de l'utilisateur restent en texte brut.
+ */
 @Component({
   selector: 'app-chat-panel',
-  imports: [LucideChefHat, LucideRotateCcw, LucideSendHorizontal, LucideWrench],
+  imports: [LucideChefHat, LucideRotateCcw, LucideSendHorizontal, LucideWrench, MarkdownPipe],
   templateUrl: './chat-panel.html',
   styleUrl: './chat-panel.css',
 })

@@ -27,7 +27,13 @@
           }
         </div>
       }
-      <div class="bubble"><span class="text" data-testid="chat-text">{{ message.text }}</span></div>
+      <div class="bubble">
+        @if (message.role === 'assistant') {
+          <div class="text markdown" data-testid="chat-text" [innerHTML]="message.text | markdown"></div>
+        } @else {
+          <span class="text" data-testid="chat-text">{{ message.text }}</span>
+        }
+      </div>
     </div>
   } @empty {
     <p class="empty" data-testid="chat-empty">Posez une question au chef : stock à finir, idée de plat, préférences…</p>

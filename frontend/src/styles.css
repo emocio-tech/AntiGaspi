@@ -38,3 +38,85 @@ a {
 a:hover {
   color: var(--text-brand-hover);
 }
+
+/* Markdown des réponses du chat : injecté par [innerHTML], il échappe à l'encapsulation des composants. */
+.markdown :is(p, ul, ol) {
+  margin: 0 0 var(--space-2);
+}
+
+.markdown :is(ul, ol) {
+  padding-left: var(--space-5);
+}
+
+.markdown li + li {
+  margin-top: 2px;
+}
+
+/* Titres ramenés à la taille du texte courant : sinon h1–h6 gardent les tailles du navigateur, trop grandes dans une bulle. */
+.markdown :is(h1, h2, h3, h4, h5, h6) {
+  margin: var(--space-3) 0 var(--space-1);
+  font-size: var(--text-base);
+}
+
+.markdown > :first-child {
+  margin-top: 0;
+}
+
+.markdown > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown code {
+  padding: 1px 5px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 0.9em;
+}
+
+.markdown pre {
+  margin: 0 0 var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  max-width: 100%;
+  overflow-x: auto;
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+}
+
+.markdown pre code {
+  padding: 0;
+  background: none;
+}
+
+/* Tableau défilant horizontalement plutôt que de déborder de la bulle. */
+.markdown table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  margin: 0 0 var(--space-2);
+}
+
+.markdown :is(th, td) {
+  padding: 4px 8px;
+  border: 1px solid var(--border-soft);
+  text-align: left;
+}
+
+.markdown blockquote {
+  margin: 0 0 var(--space-2);
+  padding-left: var(--space-3);
+  border-left: 3px solid var(--border-soft);
+  color: var(--text-muted);
+}
+
+.markdown hr {
+  margin: var(--space-2) 0;
+  border: none;
+  border-top: 1px solid var(--border-soft);
+}
+
+.markdown a {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
