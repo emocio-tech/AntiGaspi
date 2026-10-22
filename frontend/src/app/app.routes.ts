@@ -7,5 +7,10 @@ export const routes: Routes = [
     title: 'Inventaire · antigaspi',
     loadComponent: () => import('./inventory/inventory-page').then((m) => m.InventoryPage),
   },
+  {
+    path: 'profil',
+    title: 'Profil · antigaspi',
+    loadComponent: () => import('./profile/profile-page').then((m) => m.ProfilePage),
+  },
   { path: '**', redirectTo: 'inventaire' },
 ];
