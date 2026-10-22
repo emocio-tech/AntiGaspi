@@ -53,3 +53,6 @@ data/utensils.json
 # Maven
 target/
 .mvn/wrapper/maven-wrapper.jar
+
+# Configuration MCP locale de Claude Code (propre à chacun)
+.mcp.json
