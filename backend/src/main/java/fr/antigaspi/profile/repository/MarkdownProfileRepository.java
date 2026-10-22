@@ -12,6 +12,7 @@ import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
 
@@ -34,7 +35,16 @@ public class MarkdownProfileRepository implements ProfileRepository {
 
     private final Path profilePath;
 
-    public MarkdownProfileRepository(@Value("${antigaspi.profile.path}") Path profilePath) {
+    /**
+     * Constructeur Spring : le chemin est reçu en texte, car convertir directement en {@link Path} lit un chemin
+     * relatif comme une ressource du serveur web et fait échouer le démarrage.
+     */
+    @Autowired
+    public MarkdownProfileRepository(@Value("${antigaspi.profile.path}") String profilePath) {
+        this(Path.of(profilePath));
+    }
+
+    public MarkdownProfileRepository(Path profilePath) {
         this.profilePath = profilePath;
     }
 

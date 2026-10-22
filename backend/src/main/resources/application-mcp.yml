@@ -11,11 +11,3 @@ spring:
 # Écoute uniquement en local (profil prévu hors conteneur) : pas d'authentification
 server:
   address: 127.0.0.1
-
-antigaspi:
-  # Préfixe file: obligatoire en contexte web réel : sans lui, la conversion String -> Path passe par une ressource servlet et échoue.
-  # Valable pour le profil mcp uniquement ; un chemin Windows absolu avec antislashs n'est pas supporté (chemin relatif ou avec /).
-  profile:
-    path: file:${PROFILE_PATH:../data/profil.md}
-  utensils:
-    path: file:${UTENSILS_PATH:../data/utensils.json}

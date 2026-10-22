@@ -42,9 +42,17 @@ public class JsonUtensilRepository implements UtensilRepository {
         this(resource, null);
     }
 
+    /**
+     * Constructeur Spring : le chemin est reçu en texte, car convertir directement en {@link Path} lit un chemin
+     * relatif comme une ressource du serveur web et fait échouer le démarrage.
+     */
     @Autowired
-    public JsonUtensilRepository(@Value("${antigaspi.utensils.path}") Path file,
+    public JsonUtensilRepository(@Value("${antigaspi.utensils.path}") String file,
             @Value("classpath:data/utensils.json") Resource initial) {
+        this(Path.of(file), initial);
+    }
+
+    public JsonUtensilRepository(Path file, Resource initial) {
         this(Files.isRegularFile(file) ? new FileSystemResource(file) : initial, file);
     }
 
