@@ -12,6 +12,7 @@ import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
 
@@ -34,7 +35,16 @@ public class MarkdownProfileRepository implements ProfileRepository {
 
     private final Path profilePath;
 
-    public MarkdownProfileRepository(@Value("${antigaspi.profile.path}") Path profilePath) {
+    /**
+     * Constructeur Spring : le chemin est reçu en texte, car convertir directement en {@link Path} lit un chemin
+     * relatif comme une ressource du serveur web et fait échouer le démarrage.
+     */
+    @Autowired
+    public MarkdownProfileRepository(@Value("${antigaspi.profile.path}") String profilePath) {
+        this(Path.of(profilePath));
+    }
+
+    public MarkdownProfileRepository(Path profilePath) {
         this.profilePath = profilePath;
     }
 
@@ -50,6 +60,62 @@ public class MarkdownProfileRepository implements ProfileRepository {
         } catch (IOException e) {
             throw new UncheckedIOException("Lecture du profil impossible : " + source.get(), e);
         }
+    }
+
+    /**
+     * Réécrit la liste de la section « Préférences » et laisse le reste du fichier intact. Sans fichier, part du
+     * gabarit ou, à défaut, d'un profil minimal.
+     */
+    @Override
+    public void save(UserProfile profile) {
+        List<String> lines = resolveSource().map(MarkdownProfileRepository::readLines)
+                .orElseGet(() -> List.of("# Profil", ""));
+        List<String> updated = replacePreferences(lines, profile.preferences());
+        try {
+            Path parent = profilePath.toAbsolutePath().getParent();
+            if (parent != null) {
+                Files.createDirectories(parent);
+            }
+            Files.writeString(profilePath, String.join("\n", updated) + "\n");
+        } catch (IOException e) {
+            throw new UncheckedIOException("Écriture du profil impossible : " + profilePath, e);
+        }
+    }
+
+    private static List<String> readLines(Path source) {
+        try {
+            return Files.readAllLines(source);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Lecture du profil impossible : " + source, e);
+        }
+    }
+
+    /** Remplace les éléments de la première section « Préférences », ou l'ajoute en fin de fichier si elle manque. */
+    private static List<String> replacePreferences(List<String> lines, List<String> preferences) {
+        List<String> result = new ArrayList<>();
+        boolean found = false;
+        boolean inSection = false;
+        for (String line : lines) {
+            String stripped = line.strip();
+            if (stripped.startsWith("## ")) {
+                inSection = !found && "preferences".equals(normalize(stripped.substring(3)));
+                result.add(line);
+                if (inSection) {
+                    found = true;
+                    preferences.forEach(preference -> result.add("- " + preference));
+                }
+            } else if (!(inSection && (stripped.startsWith("- ") || stripped.startsWith("* ")))) {
+                result.add(line);
+            }
+        }
+        if (!found) {
+            if (!result.isEmpty() && !result.getLast().isBlank()) {
+                result.add("");
+            }
+            result.add("## Préférences");
+            preferences.forEach(preference -> result.add("- " + preference));
+        }
+        return result;
     }
 
     private Optional<Path> resolveSource() {

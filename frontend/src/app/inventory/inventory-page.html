@@ -1,0 +1,67 @@
+<header class="head">
+  <h1>Inventaire</h1>
+  <p>{{ summary() }}</p>
+</header>
+
+@if (store.loading() && store.items().length === 0) {
+  <p class="state" data-testid="loading">Chargement de l'inventaire…</p>
+} @else if (store.error()) {
+  <div class="state" data-testid="error">
+    <p>Impossible de charger l'inventaire.</p>
+    <button type="button" class="btn" data-testid="retry" (click)="store.reload()">Réessayer</button>
+  </div>
+} @else if (store.items().length === 0) {
+  <p class="state" data-testid="empty">Votre inventaire est vide.</p>
+} @else {
+  @if (urgentItems().length > 0) {
+    <section class="hero" data-testid="hero">
+      <div class="hero-text">
+        <strong>À consommer en priorité</strong>
+        <span>
+          @for (item of urgentItems(); track item.id; let last = $last) {
+            {{ item.name }}{{ last ? '' : ' · ' }}
+          }
+        </span>
+      </div>
+      <a routerLink="/recettes" class="btn btn-primary">
+        <svg lucideChefHat [size]="17"></svg>
+        Trouver une recette
+      </a>
+    </section>
+  }
+
+  @for (group of groups(); track group.urgency) {
+    <section class="group" [attr.data-testid]="'group-' + group.urgency">
+      <div class="group-head">
+        <span class="dot" [style.background]="style[group.urgency].dot"></span>
+        <h2>{{ style[group.urgency].title }}</h2>
+        <span class="count">{{ group.items.length }}</span>
+        @if (group.urgency === 'LATER') {
+          <button type="button" class="toggle" [attr.data-testid]="'toggle-' + group.urgency" (click)="toggleLater()">
+            {{ isOpen(group.urgency) ? 'Masquer' : 'Afficher' }}
+          </button>
+        }
+      </div>
+      @if (isOpen(group.urgency)) {
+        <ul class="items">
+          @for (item of group.items; track item.id) {
+            <li class="item">
+              <span class="icon" [style.background]="style[item.urgency].tint" [style.color]="style[item.urgency].text">
+                <app-category-icon [category]="item.category" />
+              </span>
+              <span class="item-text">
+                <span class="name">{{ item.name }}</span>
+                <span class="qty">{{ formatQuantity(item.quantity, item.unit) }}</span>
+              </span>
+              <span class="badge" [style.color]="style[item.urgency].text" [class.estimated]="item.estimated">
+                {{ urgencyLabel(item) }}
+              </span>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+  }
+
+  <p class="legend">« ≈ » : date estimée selon la catégorie</p>
+}

@@ -31,6 +31,9 @@ import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.model.tool.ToolCallingChatOptions;
 import org.springframework.core.io.ByteArrayResource;
 
+import fr.antigaspi.chat.model.ChatEntry;
+import fr.antigaspi.chat.model.ChatReply;
+import fr.antigaspi.chat.model.ChatRole;
 import fr.antigaspi.ingredient.model.Category;
 import fr.antigaspi.ingredient.model.Ingredient;
 import fr.antigaspi.ingredient.model.Unit;
@@ -195,5 +198,78 @@ class ChatAssistantTest {
         });
 
         assertThatThrownBy(() -> assistant.reply("Bonjour")).isInstanceOf(ChatException.class).hasRootCause(failure);
+    }
+
+    @Test
+    void replyWithTools_renvoieLeTexteEtLesToolsAppelesPourCeMessageSeulement() {
+        ChatAssistant assistant = assistantAnswering(toolCall("{\"joursMax\":3}"),
+                new AssistantMessage("Les courgettes."), new AssistantMessage("Bonjour !"));
+
+        ChatReply first = assistant.replyWithTools("Qu'est-ce qui périme bientôt ?");
+        ChatReply second = assistant.replyWithTools("Bonjour");
+
+        assertThat(first.text()).isEqualTo("Les courgettes.");
+        assertThat(first.tools()).containsExactly(new ToolCalledEvent("listerIngredients", "{\"joursMax\":3}"));
+        assertThat(second.text()).isEqualTo("Bonjour !");
+        assertThat(second.tools()).isEmpty();
+    }
+
+    @Test
+    void replyWithTools_messageVide_estRefuse_sansAppelerLeModele() {
+        ChatAssistant assistant = assistantAnswering(new AssistantMessage("Bonjour !"));
+
+        assertThatThrownBy(() -> assistant.replyWithTools("   ")).isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Le message est vide");
+        assertThatThrownBy(() -> assistant.replyWithTools(null)).isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Le message est vide");
+        assertThat(prompts).isEmpty();
+    }
+
+    @Test
+    void replyWithTools_echecDuModele_leveChatException() {
+        ChatAssistant assistant = assistant(prompt -> {
+            throw new IllegalStateException("LLM indisponible");
+        });
+
+        assertThatThrownBy(() -> assistant.replyWithTools("Bonjour")).isInstanceOf(ChatException.class);
+    }
+
+    @Test
+    void reset_faitOublierLesEchangesPrecedents() {
+        ChatAssistant assistant = assistantAnswering(new AssistantMessage("Des courgettes."),
+                new AssistantMessage("Bonjour !"));
+        assistant.reply("Qu'est-ce qui périme bientôt ?");
+
+        assistant.reset();
+        assistant.reply("Bonjour");
+
+        assertThat(texts(prompts.get(1), MessageType.USER)).containsExactly("Bonjour");
+        assertThat(texts(prompts.get(1), MessageType.ASSISTANT)).isEmpty();
+    }
+
+    @Test
+    void history_listeQuestionsEtReponsesDansLOrdre_sansLesMessagesDeTools() {
+        ChatAssistant assistant = assistantAnswering(toolCall("{}"), new AssistantMessage("Des courgettes."),
+                new AssistantMessage("Ce sont des légumes."));
+        assertThat(assistant.history()).isEmpty();
+
+        assistant.reply("Qu'est-ce qui périme bientôt ?");
+        assistant.reply("Et c'est quelle catégorie ?");
+
+        assertThat(assistant.history()).containsExactly(
+                new ChatEntry(ChatRole.USER, "Qu'est-ce qui périme bientôt ?"),
+                new ChatEntry(ChatRole.ASSISTANT, "Des courgettes."),
+                new ChatEntry(ChatRole.USER, "Et c'est quelle catégorie ?"),
+                new ChatEntry(ChatRole.ASSISTANT, "Ce sont des légumes."));
+    }
+
+    @Test
+    void history_apresReset_estVide() {
+        ChatAssistant assistant = assistantAnswering(new AssistantMessage("Bonjour !"));
+        assistant.reply("Bonjour");
+
+        assistant.reset();
+
+        assertThat(assistant.history()).isEmpty();
     }
 }

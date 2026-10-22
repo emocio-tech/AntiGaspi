@@ -1,0 +1,86 @@
+<header class="head">
+  <h1>Profil</h1>
+  <p>Lu par le LLM à chaque génération de recettes.</p>
+</header>
+
+@if (store.loading()) {
+  <p class="state" data-testid="loading">Chargement du profil…</p>
+} @else if (store.loadError()) {
+  <div class="state" data-testid="error">
+    <p>Impossible de charger le profil.</p>
+    <button type="button" class="btn" data-testid="retry" (click)="store.load()">Réessayer</button>
+  </div>
+} @else {
+  @if (store.actionError(); as message) {
+    <p class="alert" role="alert" data-testid="action-error">{{ message }}</p>
+  }
+
+  <div class="cards">
+    <section class="card">
+      <h2>Préférences</h2>
+      <ul class="rows">
+        @for (preference of store.preferences(); track preference) {
+          <li class="row">
+            <span class="row-text" data-testid="pref-item">{{ preference }}</span>
+            <button
+              type="button"
+              class="remove"
+              aria-label="Retirer {{ preference }}"
+              data-testid="pref-remove"
+              (click)="store.removePreference(preference)"
+            >
+              <svg lucideX [size]="16"></svg>
+            </button>
+          </li>
+        } @empty {
+          <li class="empty">Aucune préférence pour l'instant.</li>
+        }
+      </ul>
+      <form class="add" data-testid="pref-form" (submit)="addPreference($event)">
+        <input
+          type="text"
+          placeholder="ex. Pas de coriandre"
+          aria-label="Nouvelle préférence"
+          data-testid="pref-input"
+          [value]="newPreference()"
+          (input)="newPreference.set(valueOf($event))"
+        />
+        <button type="submit" class="btn" data-testid="pref-add">Ajouter</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Équipement</h2>
+      <p class="hint">Seules les recettes réalisables avec ce matériel sont proposées.</p>
+      <ul class="rows">
+        @for (utensil of store.utensils(); track utensil.id) {
+          <li class="row">
+            <span class="row-text" data-testid="utensil-item">{{ utensil.name }}</span>
+            <button
+              type="button"
+              class="remove"
+              aria-label="Retirer {{ utensil.name }}"
+              data-testid="utensil-remove"
+              (click)="store.removeUtensil(utensil.id)"
+            >
+              <svg lucideX [size]="16"></svg>
+            </button>
+          </li>
+        } @empty {
+          <li class="empty">Aucun ustensile pour l'instant.</li>
+        }
+      </ul>
+      <form class="add" data-testid="utensil-form" (submit)="addUtensil($event)">
+        <input
+          type="text"
+          placeholder="ex. Cuiseur vapeur"
+          aria-label="Nouvel ustensile"
+          data-testid="utensil-input"
+          [value]="newUtensil()"
+          (input)="newUtensil.set(valueOf($event))"
+        />
+        <button type="submit" class="btn" data-testid="utensil-add">Ajouter</button>
+      </form>
+    </section>
+  </div>
+}

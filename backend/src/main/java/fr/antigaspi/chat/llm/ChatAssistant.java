@@ -1,5 +1,6 @@
 package fr.antigaspi.chat.llm;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.Consumer;
@@ -12,6 +13,7 @@ import org.springframework.ai.chat.client.advisor.SimpleLoggerAdvisor;
 import org.springframework.ai.chat.client.advisor.ToolCallingAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.memory.MessageWindowChatMemory;
+import org.springframework.ai.chat.messages.MessageType;
 import org.springframework.ai.chat.model.ToolContext;
 import org.springframework.ai.support.ToolCallbacks;
 import org.springframework.ai.tool.ToolCallback;
@@ -25,6 +27,9 @@ import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
 
+import fr.antigaspi.chat.model.ChatEntry;
+import fr.antigaspi.chat.model.ChatReply;
+import fr.antigaspi.chat.model.ChatRole;
 import fr.antigaspi.common.ChatTools;
 import fr.antigaspi.common.Resources;
 
@@ -41,6 +46,14 @@ public class ChatAssistant {
     /** Mono-utilisateur : une seule conversation. */
     private static final String CONVERSATION_ID = "antigaspi";
 
+    private final ChatMemory memory = MessageWindowChatMemory.builder().build();
+
+    /**
+     * Tools appelés pendant la réponse en cours sur ce thread (le {@link ToolCallingAdvisor} les exécute sur le thread
+     * qui répond), {@code null} hors de {@link #replyWithTools(String)}.
+     */
+    private final ThreadLocal<List<ToolCalledEvent>> currentCalls = new ThreadLocal<>();
+
     private static final Logger log = LoggerFactory.getLogger(ChatAssistant.class);
 
     private final ChatClient chatClient;
@@ -56,13 +69,17 @@ public class ChatAssistant {
                 .toArray(ToolCallback[]::new);
         this.chatClient = chatClientBuilder.defaultSystem(Resources.readText(systemPrompt))
                 .defaultTools((Object[]) observedTools)
-                .defaultAdvisors(MessageChatMemoryAdvisor.builder(MessageWindowChatMemory.builder().build()).build(),
+                .defaultAdvisors(MessageChatMemoryAdvisor.builder(memory).build(),
                         ToolCallingAdvisor.builder().build(), new SimpleLoggerAdvisor())
                 .build();
     }
 
     /** Journalise l'appel et publie un {@link ToolCalledEvent}, affiché par exemple par la démo de chat. */
     private void notifyToolCall(ToolCalledEvent event) {
+        List<ToolCalledEvent> calls = currentCalls.get();
+        if (calls != null) {
+            calls.add(event);
+        }
         log.info("Appel du tool {} {}", event.name(), event.arguments());
         eventPublisher.publishEvent(event);
     }
@@ -71,13 +88,51 @@ public class ChatAssistant {
      * @throws ChatException
      *             si le LLM échoue
      */
-    public String reply(String message) {
+    public synchronized String reply(String message) {
         try {
             return chatClient.prompt().user(message)
                     .advisors(advisor -> advisor.param(ChatMemory.CONVERSATION_ID, CONVERSATION_ID)).call().content();
         } catch (RuntimeException e) {
             throw new ChatException("Échec de la réponse de l'assistant : " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Comme {@link #reply(String)}, avec les tools que le LLM a appelés pour ce message.
+     *
+     * @throws IllegalArgumentException
+     *             si le message est vide
+     * @throws ChatException
+     *             si le LLM échoue
+     */
+    public synchronized ChatReply replyWithTools(String message) {
+        if (message == null || message.isBlank()) {
+            throw new IllegalArgumentException("Le message est vide");
+        }
+        List<ToolCalledEvent> calls = new ArrayList<>();
+        currentCalls.set(calls);
+        try {
+            String text = reply(message);
+            return new ChatReply(text, List.copyOf(calls));
+        } finally {
+            currentCalls.remove();
+        }
+    }
+
+    /** Les questions et réponses de la conversation, dans l'ordre. */
+    public synchronized List<ChatEntry> history() {
+        return memory.get(CONVERSATION_ID).stream()
+                .filter(message -> message.getMessageType() == MessageType.USER
+                        || message.getMessageType() == MessageType.ASSISTANT)
+                .map(message -> new ChatEntry(
+                        message.getMessageType() == MessageType.USER ? ChatRole.USER : ChatRole.ASSISTANT,
+                        message.getText()))
+                .toList();
+    }
+
+    /** Efface la conversation : l'assistant repart de zéro. */
+    public synchronized void reset() {
+        memory.clear(CONVERSATION_ID);
     }
 
     /** Tool qui signale chaque appel avant de le déléguer au tool d'origine. */

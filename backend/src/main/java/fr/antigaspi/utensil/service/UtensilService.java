@@ -53,7 +53,7 @@ public class UtensilService {
      */
     public Utensil remove(long id) {
         Utensil utensil = repository.findAll().stream().filter(candidate -> candidate.id() == id).findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Aucun ustensile avec l'identifiant " + id));
+                .orElseThrow(() -> new UtensilNotFoundException(id));
         repository.deleteById(id);
         return utensil;
     }

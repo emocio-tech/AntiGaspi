@@ -1,0 +1,81 @@
+/* Tokens du design system Emocio (copiés du projet Claude Design « Maquettes UI formulaire »). */
+:root {
+  /* ---- Couleurs : marque ---- */
+  --green-500: #00c49a;
+  --green-600: #00a582;
+  --green-700: #0b8a70;
+  --green-100: #c9f2e7;
+  --green-050: #eafaf7;
+
+  --ink-900: #22262b;
+  --ink-700: #3a4150;
+  --ink-500: #5a6472;
+  --ink-300: #9aa1ac;
+
+  /* ---- Surfaces ---- */
+  --surface-page: #f8f9fb;
+  --surface-card: #ffffff;
+  --surface-sunken: #eef1f4;
+  --border-soft: #e8ebef;
+
+  /* ---- Teintes sémantiques ---- */
+  --tint-mint: #eafaf7;
+  --tint-rose: #feeeee;
+  --tint-sky: #ecfbfe;
+  --tint-cream: #fff9f3;
+
+  /* ---- Alias sémantiques ---- */
+  --text-heading: var(--ink-900);
+  --text-body: var(--ink-500);
+  --text-strong: var(--ink-700);
+  --text-faint: var(--ink-300); /* placeholders et désactivé uniquement */
+  --text-muted: #666e7c;
+  --text-brand: #007d63;
+  --text-brand-hover: #005f4b;
+  --text-warning: #a05e18;
+  --text-on-brand: #ffffff;
+  --action-primary: var(--green-500);
+  --action-primary-hover: var(--green-600);
+  --link: var(--text-brand);
+  --focus-ring: rgba(0, 196, 154, 0.35);
+  --danger: #e5484d;
+  --warning: #f7941d;
+
+  /* ---- Typographie ---- */
+  --font-sans: 'Quicksand', 'Trebuchet MS', 'Segoe UI', sans-serif;
+  --weight-body: 500;
+  --weight-medium: 600;
+  --weight-bold: 700;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 15px;
+  --text-md: 17px;
+  --text-lg: 20px;
+  --text-xl: 24px;
+  --text-2xl: 30px;
+  --leading-tight: 1.15;
+  --leading-snug: 1.3;
+  --leading-body: 1.55;
+  --tracking-caps: 0.06em;
+
+  /* ---- Espacements (base 4 px) ---- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* ---- Rayons, ombres ---- */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 24px;
+  --radius-pill: 999px;
+  --shadow-card: 0 1px 2px rgba(34, 38, 43, 0.04), 0 4px 12px rgba(34, 38, 43, 0.05);
+  --shadow-raised: 0 6px 24px rgba(34, 38, 43, 0.1);
+  --shadow-focus: 0 0 0 3px var(--focus-ring);
+}
