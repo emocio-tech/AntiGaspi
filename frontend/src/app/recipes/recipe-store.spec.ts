@@ -81,7 +81,9 @@ describe('RecipeStore', () => {
 
     const reqs = requetes();
     expect(reqs.length).toBe(RECIPE_COUNT);
-    reqs.forEach((req) => expect(req.request.body).toEqual({ ingredientIds: [2], servings: 4, maxMinutes: 30 }));
+    reqs.forEach((req, index) =>
+      expect(req.request.body).toEqual({ ingredientIds: [2], servings: 4, maxMinutes: 30, variant: index }),
+    );
     expect(store.slots().map((s) => s.status)).toEqual(['loading', 'loading', 'loading']);
     expect(store.generating()).toBe(true);
     reqs.forEach((req) => req.flush(generated()));

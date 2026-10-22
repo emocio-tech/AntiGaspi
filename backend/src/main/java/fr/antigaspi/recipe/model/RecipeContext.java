@@ -19,7 +19,18 @@ import fr.antigaspi.utensil.model.Utensil;
  *            temps maximal, {@code null} si aucune contrainte
  * @param instructions
  *            demande de l'utilisateur en texte libre, {@code null} si aucune
+ * @param imposedMain
+ *            aliment principal imposé à cette variante, {@code null} si aucun
+ * @param imposedDishType
+ *            type de plat imposé à cette variante, {@code null} sans variante
  */
 public record RecipeContext(List<IngredientView> priorityIngredients, List<IngredientView> otherIngredients,
-        List<Utensil> utensils, UserProfile profile, int servings, Integer maxMinutes, String instructions) {
+        List<Utensil> utensils, UserProfile profile, int servings, Integer maxMinutes, String instructions,
+        IngredientView imposedMain, DishType imposedDishType) {
+
+    /** Contexte sans variante. */
+    public RecipeContext(List<IngredientView> priorityIngredients, List<IngredientView> otherIngredients,
+            List<Utensil> utensils, UserProfile profile, int servings, Integer maxMinutes, String instructions) {
+        this(priorityIngredients, otherIngredients, utensils, profile, servings, maxMinutes, instructions, null, null);
+    }
 }

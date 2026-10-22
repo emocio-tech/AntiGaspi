@@ -1,13 +1,17 @@
 package fr.antigaspi.recipe.service;
 
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.stereotype.Service;
 
+import fr.antigaspi.ingredient.model.Category;
 import fr.antigaspi.ingredient.model.IngredientView;
 import fr.antigaspi.ingredient.service.IngredientService;
 import fr.antigaspi.profile.service.ProfileService;
 import fr.antigaspi.recipe.llm.RecipeGenerator;
+import fr.antigaspi.recipe.model.DishType;
 import fr.antigaspi.recipe.model.GeneratedRecipe;
 import fr.antigaspi.recipe.model.Recipe;
 import fr.antigaspi.recipe.model.RecipeContext;
@@ -20,6 +24,10 @@ import fr.antigaspi.utensil.service.UtensilService;
  */
 @Service
 public class RecipeService {
+
+    /** Catégories qui ne peuvent pas être l'aliment principal d'un plat. */
+    private static final Set<Category> NOT_MAIN_CATEGORIES = EnumSet.of(Category.CONDIMENTS, Category.BOISSONS,
+            Category.EPICERIE_SECHE);
 
     private final IngredientService ingredientService;
     private final UtensilService utensilService;
@@ -44,7 +52,7 @@ public class RecipeService {
      *            {@code null} équivaut à {@link RecipeRequest#mostUrgent()}
      *
      * @throws IllegalArgumentException
-     *             si aucun aliment n'est disponible ou si les portions ou le temps sont invalides
+     *             si aucun aliment n'est disponible ou si les portions, le temps ou la variante sont invalides
      * @throws RecipeGenerationException
      *             si le LLM échoue
      */
@@ -59,6 +67,12 @@ public class RecipeService {
             throw new IllegalArgumentException("Le temps maximal doit être positif : " + maxMinutes);
         }
 
+        Integer variant = effectiveRequest.variant();
+        if (variant != null && (variant < 0 || variant >= DishType.values().length)) {
+            throw new IllegalArgumentException(
+                    "La variante doit être comprise entre 0 et " + (DishType.values().length - 1) + " : " + variant);
+        }
+
         List<IngredientView> inventory = ingredientService.listByUrgency();
         List<IngredientView> priority = selectPriority(inventory, effectiveRequest.ingredientIds());
         if (priority.isEmpty()) {
@@ -66,8 +80,17 @@ public class RecipeService {
         }
         List<IngredientView> others = inventory.stream().filter(view -> !priority.contains(view)).toList();
         List<Utensil> utensils = utensilService.listAll();
-        Recipe recipe = recipeGenerator.generate(new RecipeContext(priority, others, utensils,
-                profileService.getProfile(), servings, maxMinutes, effectiveRequest.instructions()));
+        IngredientView imposedMain = null;
+        DishType imposedDishType = null;
+        if (variant != null) {
+            List<IngredientView> candidates = priority.stream()
+                    .filter(view -> !NOT_MAIN_CATEGORIES.contains(view.ingredient().category())).toList();
+            imposedMain = candidates.isEmpty() ? null : candidates.get(variant % candidates.size());
+            imposedDishType = DishType.values()[variant];
+        }
+        Recipe recipe = recipeGenerator
+                .generate(new RecipeContext(priority, others, utensils, profileService.getProfile(), servings,
+                        maxMinutes, effectiveRequest.instructions(), imposedMain, imposedDishType));
         return recipeChecker.check(recipe, inventory.stream().map(IngredientView::ingredient).toList(), utensils);
     }
 

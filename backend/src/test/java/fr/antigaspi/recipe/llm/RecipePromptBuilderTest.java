@@ -12,6 +12,7 @@ import org.springframework.core.io.ClassPathResource;
 
 import fr.antigaspi.ingredient.model.Unit;
 import fr.antigaspi.profile.model.UserProfile;
+import fr.antigaspi.recipe.model.DishType;
 import fr.antigaspi.recipe.model.RecipeContext;
 import fr.antigaspi.utensil.model.Utensil;
 
@@ -103,6 +104,42 @@ class RecipePromptBuilderTest {
                 UTENSILS, PROFILE, 2, null, "végétarien, plat léger");
 
         assertThat(builder.userPrompt(context)).contains("Demande de l'utilisateur : végétarien, plat léger");
+    }
+
+    @Test
+    void systemPromptDuProjet_expliqueLesConsignesDeVariante() {
+        assertThat(builder.systemPrompt()).contains("Aliment principal imposé", "Type de plat imposé");
+    }
+
+    @Test
+    void userPrompt_sansVariante_aucuneConsigneDeDivergence() {
+        RecipeContext context = new RecipeContext(List.of(view(1, "Tomates", "3", Unit.PIECE, 2, false)), List.of(),
+                UTENSILS, PROFILE, 2, null, null);
+
+        assertThat(builder.userPrompt(context)).doesNotContain("Aliment principal imposé", "Type de plat imposé");
+    }
+
+    @Test
+    void userPrompt_variante_imposeLAlimentPrincipalEtLeTypeDePlatParmiLesAutres() {
+        RecipeContext context = new RecipeContext(
+                List.of(view(1, "Tomates", "3", Unit.PIECE, 2, false), view(2, "Poulet", "400", Unit.G, 0, false)),
+                List.of(), UTENSILS, PROFILE, 2, null, null, view(2, "Poulet", "400", Unit.G, 0, false), DishType.FOUR);
+
+        String prompt = builder.userPrompt(context);
+
+        assertThat(prompt).contains("Aliment principal imposé : [2] Poulet",
+                "Type de plat imposé : " + DishType.FOUR.label(), DishType.POELEE.label(), DishType.MIJOTE.label())
+                .doesNotContain("{", "}");
+        assertThat(prompt.indexOf(DishType.FOUR.label())).isLessThan(prompt.indexOf(DishType.POELEE.label()));
+    }
+
+    @Test
+    void userPrompt_varianteSansAlimentPrincipal_imposeSeulementLeTypeDePlat() {
+        RecipeContext context = new RecipeContext(List.of(view(1, "Moutarde", "1", Unit.PIECE, 2, false)), List.of(),
+                UTENSILS, PROFILE, 2, null, null, null, DishType.MIJOTE);
+
+        assertThat(builder.userPrompt(context)).doesNotContain("Aliment principal imposé")
+                .contains("Type de plat imposé : " + DishType.MIJOTE.label());
     }
 
     @Test

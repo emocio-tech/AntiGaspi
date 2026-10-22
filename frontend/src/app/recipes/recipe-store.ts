@@ -23,7 +23,8 @@ const isUrgent = (ingredient: Ingredient) => ingredient.urgency === 'EXPIRED_OR_
 
 /**
  * Réglages de la génération et recettes reçues. Chaque génération lance {@link RECIPE_COUNT} appels en parallèle ;
- * une recette en échec n'empêche pas les autres. Les recettes ne sont pas conservées au-delà de la session.
+ * une recette en échec n'empêche pas les autres. Chaque appel porte un numéro de variante (0 à 2) pour que les recettes
+ * diffèrent. Les recettes ne sont pas conservées au-delà de la session.
  */
 @Injectable({ providedIn: 'root' })
 export class RecipeStore {
@@ -68,7 +69,7 @@ export class RecipeStore {
     const body = { ingredientIds: this.selectedIds(), servings: this.servings(), maxMinutes: this.maxMinutes() };
     this.slots.set(Array.from({ length: RECIPE_COUNT }, () => ({ status: 'loading' }) as RecipeSlot));
     for (let index = 0; index < RECIPE_COUNT; index++) {
-      this.http.post<GeneratedRecipe>('/api/recipes', body).subscribe({
+      this.http.post<GeneratedRecipe>('/api/recipes', { ...body, variant: index }).subscribe({
         next: (result) => this.setSlot(run, index, { status: 'done', result }),
         error: (error: unknown) => this.setSlot(run, index, { status: 'error', message: messageOf(error) }),
       });

@@ -1,6 +1,8 @@
 package fr.antigaspi.recipe.llm;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
@@ -10,6 +12,7 @@ import fr.antigaspi.common.Resources;
 
 import fr.antigaspi.ingredient.model.Ingredient;
 import fr.antigaspi.ingredient.model.IngredientView;
+import fr.antigaspi.recipe.model.DishType;
 import fr.antigaspi.recipe.model.RecipeContext;
 import fr.antigaspi.utensil.model.Utensil;
 
@@ -42,7 +45,9 @@ public class RecipePromptBuilder {
         prompt.append("Demande de l'utilisateur : ")
                 .append(context.instructions() == null || context.instructions().isBlank() ? "aucune"
                         : context.instructions().strip())
-                .append("\n\n");
+                .append("\n");
+        appendImposed(prompt, context);
+        prompt.append('\n');
 
         prompt.append(
                 "Aliments à consommer en priorité, du plus urgent au moins urgent (identifiant entre crochets) :\n");
@@ -54,6 +59,23 @@ public class RecipePromptBuilder {
                 "non renseignés");
         appendList(prompt, "Préférences", context.profile().preferences(), "aucune");
         return prompt.toString();
+    }
+
+    /** Aliment principal et type de plat imposés à une variante ; rien sans variante. */
+    private static void appendImposed(StringBuilder prompt, RecipeContext context) {
+        DishType imposed = context.imposedDishType();
+        if (imposed == null) {
+            return;
+        }
+        IngredientView main = context.imposedMain();
+        if (main != null) {
+            prompt.append("Aliment principal imposé : [").append(main.ingredient().id()).append("] ")
+                    .append(main.ingredient().name()).append('\n');
+        }
+        prompt.append("Type de plat imposé : ").append(imposed.label()).append('\n');
+        String others = Arrays.stream(DishType.values()).filter(type -> type != imposed).map(DishType::label)
+                .collect(Collectors.joining(" ; "));
+        prompt.append("Les autres propositions sont : ").append(others).append('\n');
     }
 
     /** Exemple : {@code [3] Courgettes : 2.5 kg, reste 2 jour(s) (date estimée)}. */
