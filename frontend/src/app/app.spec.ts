@@ -25,6 +25,15 @@ describe('App', () => {
     http.expectOne('/api/ingredients').flush([]);
   });
 
+  it('propose la navigation vers les recettes', () => {
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+
+    const lien = (fixture.nativeElement as HTMLElement).querySelector('a[href="/recettes"]');
+    expect(lien?.textContent).toContain('Recettes');
+    http.expectOne('/api/ingredients').flush([]);
+  });
+
   it('propose la navigation vers le profil', () => {
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();

@@ -11,6 +11,10 @@
         <span class="urgent" data-testid="urgent-count">{{ inventory.urgentCount() }}</span>
       }
     </a>
+    <a routerLink="/recettes" routerLinkActive="active" class="nav-item">
+      <svg lucideChefHat [size]="18"></svg>
+      <span class="label">Recettes</span>
+    </a>
     <a routerLink="/profil" routerLinkActive="active" class="nav-item">
       <svg lucideUserRound [size]="18"></svg>
       <span class="label">Profil</span>

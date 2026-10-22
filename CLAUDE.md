@@ -19,7 +19,7 @@ fr.antigaspi
 ├── ingredient/   model/ (Ingredient, Category, Unit, Urgency, IngredientView) · repository/ · service/ · api/ (IngredientController : GET /api/ingredients et /api/ingredients/categories, IngredientExceptionHandler : 400 avec `{"message"}`) · tool/ (IngredientTools : tool LLM listerIngredients · IngredientMcpConfig : expose ce seul tool au serveur MCP, profil `mcp`)
 ├── utensil/      model/ (Utensil) · repository/ · service/ (UtensilNotFoundException → 404) · api/ (UtensilController : GET, POST, DELETE /api/utensils) · tool/ (UtensilTools : tools LLM listUtensils, addUtensil, removeUtensil)
 ├── profile/      model/ (UserProfile) · repository/ (Markdown : lecture et réécriture de la seule section Préférences) · service/ · api/ (ProfileController : GET et PUT /api/profile) · tool/ (ProfileTools : tool LLM consulterPreferences)
-├── recipe/       model/ (Recipe, RecipeIngredient, RecipeRequest, RecipeContext, GeneratedRecipe, RecipeIssue) · service/ (RecipeService, RecipeChecker : garde-fou post-LLM) · llm/ (RecipeGenerator, Spring AI, prompts) · tool/ (RecipeTools : tool LLM genererRecette, génération + garde-fou en un appel) · cli/ (démo terminal)
+├── recipe/       model/ (Recipe, RecipeIngredient, RecipeRequest, RecipeContext, GeneratedRecipe, RecipeIssue) · service/ (RecipeService, RecipeChecker : garde-fou post-LLM) · api/ (RecipeController : POST /api/recipes, une recette et un appel LLM par requête ; RecipeExceptionHandler : 502 si le LLM échoue) · llm/ (RecipeGenerator, Spring AI, prompts) · tool/ (RecipeTools : tool LLM genererRecette, génération + garde-fou en un appel) · cli/ (démo terminal)
 ├── chat/         llm/ (ChatAssistant : ChatClient + mémoire + tous les beans ChatTools, ToolCalledEvent publié à chaque appel de tool) · cli/ (démo chat en terminal)
 ├── common/       utilitaires partagés (Resources : lecture JSON et texte ; ChatTools : marqueur des classes de tools exposées au chat ; api/ : ApiError et ApiExceptionHandler, 400 `{"message"}` commun à toutes les API REST)
 └── config/       configuration Spring (Clock)
@@ -34,10 +34,11 @@ fr.antigaspi
 - Une nouvelle fonctionnalité suit le même schéma. Les tests reprennent le package de la classe testée.
 
 ## Architecture du frontend
-- `frontend/src/app/<fonctionnalité>/` : un dossier par écran (ex. `inventory/` : `InventoryPage`, `InventoryStore` en lecture via `httpResource`, modèle, fonctions pures dans `urgency.ts` ; `profile/` : `ProfilePage`, `ProfileStore` avec modifications via `HttpClient`, sans mise à jour optimiste). Spec `xxx.spec.ts` à côté du fichier testé.
+- `frontend/src/app/<fonctionnalité>/` : un dossier par écran (ex. `inventory/` : `InventoryPage`, `InventoryStore` en lecture via `httpResource`, modèle, fonctions pures dans `urgency.ts` ; `profile/` : `ProfilePage`, `ProfileStore` avec modifications via `HttpClient`, sans mise à jour optimiste ; `recipes/` : `RecipesPage` et `RecipeDetailPage`, `RecipeStore` qui lance 3 appels `POST /api/recipes` en parallèle et ignore les réponses d'une génération remplacée). `api-error.ts` : message des erreurs `{"message"}` de l'API. Spec `xxx.spec.ts` à côté du fichier testé.
 - Navigation : `app.html` (barre latérale sur ordinateur, barre d'onglets en bas sur mobile, la même `nav` repositionnée par CSS) ; une route paresseuse par écran dans `app.routes.ts`.
 - Les données viennent de l'API Spring (`/api/...`) ; en développement, `proxy.conf.json` redirige `/api` vers `127.0.0.1:8080`. Un store `providedIn: 'root'` (`httpResource`) est partagé entre les écrans qui en ont besoin (ex. pastille d'urgence de la navigation).
-- Tout le front se développe sur la branche `feat/front`. Écrans, dans l'ordre : Inventaire (fait), Profil (fait : préférences et équipement en liste avec retrait, sans interrupteur ; pas encore l'historique des retours), Recettes, Chat avec le chef.
+- Tout le front se développe sur la branche `feat/front`. Écrans, dans l'ordre : Inventaire (fait), Profil (fait : préférences et équipement en liste avec retrait, sans interrupteur ; pas encore l'historique des retours), Recettes (fait : réglages, 3 cartes, détail ; recettes non conservées après rechargement, pas de « À acheter » ni de « J'ai cuisiné »), Chat avec le chef.
+- Les écrans de génération appellent le vrai LLM : aucun test ne le fait, la vérification en réel se fait en lançant backend et front (`npm start`).
 
 ## Commandes
 - Tous les tests (sans appel LLM) : `mvn -q verify`

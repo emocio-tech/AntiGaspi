@@ -1,0 +1,133 @@
+<header class="head">
+  <h1>Recettes</h1>
+  <p>Cuisinez d'abord ce qui presse, selon vos goûts et votre équipement.</p>
+</header>
+
+<section class="card">
+  <div class="settings">
+    <div class="field">
+      <span class="label">Personnes</span>
+      <div class="stepper">
+        <button
+          type="button"
+          class="round"
+          aria-label="Moins"
+          data-testid="servings-minus"
+          [disabled]="store.servings() <= minServings"
+          (click)="store.changeServings(-1)"
+        >
+          <svg lucideMinus [size]="16"></svg>
+        </button>
+        <span class="servings" data-testid="servings">{{ store.servings() }}</span>
+        <button
+          type="button"
+          class="round"
+          aria-label="Plus"
+          data-testid="servings-plus"
+          [disabled]="store.servings() >= maxServings"
+          (click)="store.changeServings(1)"
+        >
+          <svg lucidePlus [size]="16"></svg>
+        </button>
+      </div>
+    </div>
+    <div class="field">
+      <span class="label">Temps maximum</span>
+      <div class="segments">
+        @for (option of timeOptions; track option.label) {
+          <button
+            type="button"
+            class="segment"
+            data-testid="time-option"
+            [attr.aria-pressed]="store.maxMinutes() === option.value"
+            (click)="store.setMaxMinutes(option.value)"
+          >
+            {{ option.label }}
+          </button>
+        }
+      </div>
+    </div>
+  </div>
+
+  <div class="field">
+    <div class="label-row">
+      <span class="label">Ingrédients à inclure absolument</span>
+      <span class="hint">Les plus urgents sont présélectionnés</span>
+    </div>
+    @if (inventory.items().length === 0) {
+      <p class="hint" data-testid="empty-inventory">Votre inventaire est vide : ajoutez des aliments pour générer des recettes.</p>
+    }
+    <div class="chips">
+      @for (item of inventory.items(); track item.id) {
+        <button
+          type="button"
+          class="chip"
+          data-testid="ingredient-chip"
+          [attr.aria-pressed]="store.selectedIds().includes(item.id)"
+          (click)="store.toggleIngredient(item.id)"
+        >
+          <span class="dot" [style.background]="dotOf(item.id)"></span>{{ item.name }}
+        </button>
+      }
+    </div>
+  </div>
+
+  <div class="actions">
+    <button type="button" class="btn btn-primary" data-testid="generate" [disabled]="!canGenerate()" (click)="store.generate()">
+      <svg lucideSparkles [size]="18"></svg>
+      Générer 3 recettes
+    </button>
+    <span class="hint">Vos préférences et votre équipement (onglet Profil) sont pris en compte.</span>
+  </div>
+</section>
+
+@if (store.slots().length === 0) {
+  <div class="idle" data-testid="idle">
+    <svg lucideChefHat [size]="28"></svg>
+    <strong>Vos recettes apparaîtront ici</strong>
+    <span>Choisissez les aliments à cuisiner, puis lancez la génération.</span>
+  </div>
+} @else {
+  @if (store.generating()) {
+    <p class="loading" data-testid="loading">
+      <svg lucideSparkles [size]="16"></svg>Nova Lite compose vos recettes…
+    </p>
+  }
+  <div class="grid">
+    @for (slot of store.slots(); track $index; let i = $index) {
+      @switch (slot.status) {
+        @case ('done') {
+          <a class="recipe" data-testid="recipe-card" [routerLink]="['/recettes', i]">
+            <span class="badge">{{ savedLabel(store.urgentSavedCount(slot.result.recipe)) }}</span>
+            <span class="title">{{ slot.result.recipe.title }}</span>
+            <span class="meta">
+              <span class="meta-item"><svg lucideUsers [size]="14"></svg>{{ slot.result.recipe.servings }} pers.</span>
+              <span class="meta-item"><svg lucideClock [size]="14"></svg>{{ slot.result.recipe.preparationMinutes }} min</span>
+              @if (slot.result.recipe.utensils.length > 0) {
+                <span class="meta-item"><svg lucideCookingPot [size]="14"></svg>{{ slot.result.recipe.utensils.join(' · ') }}</span>
+              }
+            </span>
+            <span class="chips small">
+              @for (ingredient of slot.result.recipe.ingredients.slice(0, chipsPerCard); track $index) {
+                <span class="pill"><span class="dot" [style.background]="ingredientDot(ingredient)"></span>{{ ingredient.name }}</span>
+              }
+              @if (slot.result.recipe.ingredients.length > chipsPerCard) {
+                <span class="pill more">+{{ slot.result.recipe.ingredients.length - chipsPerCard }}</span>
+              }
+            </span>
+            <span class="see">Voir</span>
+          </a>
+        }
+        @case ('error') {
+          <div class="recipe failed" data-testid="recipe-error" role="alert">
+            <strong>Cette recette n'a pas pu être générée</strong>
+            <span>{{ slot.message }}</span>
+          </div>
+        }
+        @default {
+          <div class="recipe skeleton" aria-hidden="true"></div>
+        }
+      }
+    }
+  </div>
+}

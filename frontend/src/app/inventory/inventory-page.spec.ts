@@ -1,6 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { ingredient } from './ingredient.fixtures';
 import { Ingredient } from './ingredient.model';
 import { InventoryPage } from './inventory-page';
@@ -12,7 +13,7 @@ describe('InventoryPage', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [InventoryPage],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
     });
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(InventoryPage);
@@ -61,6 +62,13 @@ describe('InventoryPage', () => {
     expect(hero?.textContent).toContain('Courgettes');
     expect(hero?.textContent).not.toContain('Yaourts');
     expect(hero?.textContent).toContain('Trouver une recette');
+  });
+
+  it('mène aux recettes depuis la mise en avant', async () => {
+    await afficher(inventaire());
+
+    const lien = html().querySelector('[data-testid=hero] a');
+    expect(lien?.getAttribute('href')).toBe('/recettes');
   });
 
   it('n’affiche pas la mise en avant quand rien ne presse', async () => {

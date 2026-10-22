@@ -8,6 +8,16 @@ export const routes: Routes = [
     loadComponent: () => import('./inventory/inventory-page').then((m) => m.InventoryPage),
   },
   {
+    path: 'recettes',
+    title: 'Recettes · antigaspi',
+    loadComponent: () => import('./recipes/recipes-page').then((m) => m.RecipesPage),
+  },
+  {
+    path: 'recettes/:id',
+    title: 'Recette · antigaspi',
+    loadComponent: () => import('./recipes/recipe-detail-page').then((m) => m.RecipeDetailPage),
+  },
+  {
     path: 'profil',
     title: 'Profil · antigaspi',
     loadComponent: () => import('./profile/profile-page').then((m) => m.ProfilePage),

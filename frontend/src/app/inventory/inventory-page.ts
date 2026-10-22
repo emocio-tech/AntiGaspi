@@ -1,4 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { LucideChefHat } from '@lucide/angular';
 import { CategoryIcon } from './category-icon';
 import { InventoryStore } from './inventory-store';
@@ -8,7 +9,7 @@ import { Urgency } from './ingredient.model';
 /** Écran Inventaire : aliments regroupés par urgence de péremption. */
 @Component({
   selector: 'app-inventory-page',
-  imports: [CategoryIcon, LucideChefHat],
+  imports: [CategoryIcon, LucideChefHat, RouterLink],
   templateUrl: './inventory-page.html',
   styleUrl: './inventory-page.css',
 })

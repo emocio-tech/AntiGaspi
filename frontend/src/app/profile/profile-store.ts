@@ -1,9 +1,8 @@
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { inject, Injectable, signal } from '@angular/core';
 import { Observable } from 'rxjs';
+import { messageOf } from '../api-error';
 import { Profile, Utensil } from './profile.model';
-
-const DEFAULT_ERROR = 'Une erreur est survenue, réessayez.';
 
 /**
  * Préférences alimentaires et ustensiles, chargés depuis l'API et modifiés via elle.
@@ -97,7 +96,3 @@ export class ProfileStore {
 }
 
 const byName = (a: Utensil, b: Utensil) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' });
-
-function messageOf(error: unknown): string {
-  return (error instanceof HttpErrorResponse && error.error?.message) || DEFAULT_ERROR;
-}
