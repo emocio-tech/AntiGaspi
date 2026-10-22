@@ -3,6 +3,13 @@
   <p>Cuisinez d'abord ce qui presse, selon vos goûts et votre équipement.</p>
 </header>
 
+<div class="segments tabs" role="group" aria-label="Affichage">
+  <button type="button" class="segment" data-testid="tab-generate" [attr.aria-pressed]="tab() === 'generate'" (click)="tab.set('generate')">Générer</button>
+  <button type="button" class="segment" data-testid="tab-chat" [attr.aria-pressed]="tab() === 'chat'" (click)="tab.set('chat')">Discuter avec le chef</button>
+</div>
+
+<div class="layout" data-testid="layout" [attr.data-tab]="tab()">
+<div class="generator">
 <section class="card">
   <div class="settings">
     <div class="field">
@@ -131,3 +138,6 @@
     }
   </div>
 }
+</div>
+<app-chat-panel class="chat" />
+</div>

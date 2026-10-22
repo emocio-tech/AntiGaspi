@@ -1,0 +1,75 @@
+<header class="head">
+  <span class="avatar"><svg lucideChefHat [size]="19"></svg></span>
+  <div class="who">
+    <strong>Chef AntiGaspi</strong>
+    <span>Connaît votre inventaire, vos goûts et votre équipement</span>
+  </div>
+  <button
+    type="button"
+    class="icon-btn"
+    title="Nouvelle conversation"
+    aria-label="Nouvelle conversation"
+    data-testid="chat-reset"
+    [disabled]="store.pending()"
+    (click)="store.reset()"
+  >
+    <svg lucideRotateCcw [size]="16"></svg>
+  </button>
+</header>
+
+<div class="log" #log>
+  @for (message of store.messages(); track $index) {
+    <div class="message" [class.user]="message.role === 'user'" data-testid="chat-message" [attr.data-role]="message.role">
+      @if (message.tools.length > 0) {
+        <div class="tools">
+          @for (tool of message.tools; track $index) {
+            <span class="tool" data-testid="chat-tool" [title]="tool.arguments"><svg lucideWrench [size]="11"></svg>{{ tool.name }}</span>
+          }
+        </div>
+      }
+      <div class="bubble"><span class="text" data-testid="chat-text">{{ message.text }}</span></div>
+    </div>
+  } @empty {
+    <p class="empty" data-testid="chat-empty">Posez une question au chef : stock à finir, idée de plat, préférences…</p>
+  }
+
+  @if (store.pending()) {
+    <div class="thinking" data-testid="thinking">Le chef réfléchit…</div>
+  }
+  @if (store.error(); as message) {
+    <div class="error" role="alert" data-testid="chat-error">
+      <span>{{ message }}</span>
+      @if (!store.pending()) {
+        <button type="button" class="link" data-testid="chat-retry" (click)="store.retry()">Réessayer</button>
+      }
+    </div>
+  }
+</div>
+
+<div class="suggestions">
+  @for (suggestion of suggestions; track suggestion) {
+    <button
+      type="button"
+      class="suggestion"
+      data-testid="chat-suggestion"
+      [disabled]="store.pending()"
+      (click)="store.send(suggestion)"
+    >
+      {{ suggestion }}
+    </button>
+  }
+</div>
+
+<form class="composer" data-testid="chat-form" (submit)="submit($event)">
+  <input
+    type="text"
+    placeholder="Posez une question au chef…"
+    aria-label="Message"
+    data-testid="chat-input"
+    [value]="draft()"
+    (input)="draft.set(valueOf($event))"
+  />
+  <button type="submit" class="send" aria-label="Envoyer" data-testid="chat-send" [disabled]="!draft().trim() || store.pending()">
+    <svg lucideSendHorizontal [size]="18"></svg>
+  </button>
+</form>

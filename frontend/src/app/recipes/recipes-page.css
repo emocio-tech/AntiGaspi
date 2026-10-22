@@ -15,6 +15,56 @@
   color: var(--text-muted);
 }
 
+.tabs {
+  align-self: flex-start;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.generator {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  min-width: 0;
+}
+
+.chat {
+  height: max(420px, calc(100dvh - 300px));
+}
+
+/* Écran étroit : un seul volet à la fois, l'autre reste monté pour garder son état */
+.layout[data-tab='generate'] .chat,
+.layout[data-tab='chat'] .generator {
+  display: none;
+}
+
+/* Grand écran : générateur et chat côte à côte, onglets inutiles */
+@media (min-width: 1440px) {
+  .tabs {
+    display: none;
+  }
+
+  .layout {
+    grid-template-columns: minmax(0, 1fr) 400px;
+  }
+
+  .layout[data-tab='generate'] .chat,
+  .layout[data-tab='chat'] .generator {
+    display: flex;
+  }
+
+  .chat {
+    position: sticky;
+    top: 0;
+    height: calc(100dvh - 140px);
+  }
+}
+
 .card {
   display: flex;
   flex-direction: column;

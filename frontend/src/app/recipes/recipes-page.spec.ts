@@ -32,6 +32,8 @@ describe('RecipesPage', () => {
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(RecipesPage);
     fixture.detectChanges();
+    // Le panneau de chat charge l'historique à son affichage : cette requête n'est pas l'objet de ces tests
+    http.match('/api/chat').forEach((req) => req.flush({ messages: [] }));
   });
 
   afterEach(() => http.verify());
@@ -124,6 +126,25 @@ describe('RecipesPage', () => {
 
     expect((q('generate') as HTMLButtonElement).disabled).toBe(true);
     requetes().forEach((req) => req.flush(generated()));
+  });
+
+  it('affiche le panneau de chat à côté des recettes', () => {
+    expect(html().querySelector('app-chat-panel')).not.toBeNull();
+  });
+
+  it('alterne entre « Générer » et « Discuter » sur écran étroit', () => {
+    expect(q('layout')?.getAttribute('data-tab')).toBe('generate');
+    expect(q('tab-generate')?.getAttribute('aria-pressed')).toBe('true');
+
+    cliquer(q('tab-chat'));
+
+    expect(q('layout')?.getAttribute('data-tab')).toBe('chat');
+    expect(q('tab-chat')?.getAttribute('aria-pressed')).toBe('true');
+    expect(q('tab-generate')?.getAttribute('aria-pressed')).toBe('false');
+
+    cliquer(q('tab-generate'));
+
+    expect(q('layout')?.getAttribute('data-tab')).toBe('generate');
   });
 
   it('désactive la génération quand l’inventaire est vide', () => {

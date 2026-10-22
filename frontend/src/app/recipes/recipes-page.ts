@@ -1,6 +1,7 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { LucideChefHat, LucideClock, LucideCookingPot, LucideMinus, LucidePlus, LucideSparkles, LucideUsers } from '@lucide/angular';
+import { ChatPanel } from '../chat/chat-panel';
 import { InventoryStore } from '../inventory/inventory-store';
 import { URGENCY_STYLE } from '../inventory/urgency';
 import { MAX_SERVINGS, MIN_SERVINGS, RecipeStore, TIME_OPTIONS } from './recipe-store';
@@ -13,7 +14,7 @@ const NOT_IN_INVENTORY = '#9AA1AC';
 /** Écran Recettes : réglages de la génération et cartes des recettes proposées. */
 @Component({
   selector: 'app-recipes-page',
-  imports: [RouterLink, LucideChefHat, LucideClock, LucideCookingPot, LucideMinus, LucidePlus, LucideSparkles, LucideUsers],
+  imports: [ChatPanel, RouterLink, LucideChefHat, LucideClock, LucideCookingPot, LucideMinus, LucidePlus, LucideSparkles, LucideUsers],
   templateUrl: './recipes-page.html',
   styleUrl: './recipes-page.css',
 })
@@ -24,6 +25,8 @@ export class RecipesPage {
   protected readonly minServings = MIN_SERVINGS;
   protected readonly maxServings = MAX_SERVINGS;
   protected readonly chipsPerCard = CHIPS_PER_CARD;
+  /** Volet affiché sur écran étroit ; sur grand écran, générateur et chat sont côte à côte. */
+  protected readonly tab = signal<'generate' | 'chat'>('generate');
 
   protected readonly canGenerate = computed(() => this.inventory.items().length > 0 && !this.store.generating());
 
