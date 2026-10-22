@@ -88,7 +88,7 @@ mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=mcp
 claude mcp add --transport http antigaspi http://127.0.0.1:8080/mcp
 ```
 
-Sans authentification, tout processus local peut lire l'inventaire. Les chemins `PROFILE_PATH` et `UTENSILS_PATH` doivent être relatifs ou écrits avec des `/` (pas de chemin Windows absolu avec antislashs).
+Sans authentification, tout processus local peut lire l'inventaire. Pour l'ouvrir à un assistant hébergé dans le cloud (ChatGPT, par exemple), voir [docs/mcp-tunnel-cloudflare.md](docs/mcp-tunnel-cloudflare.md) : tunnel Cloudflare limité à `/mcp`, toujours sans authentification, donc à arrêter quand on ne l'utilise pas. Les chemins `PROFILE_PATH` et `UTENSILS_PATH` doivent être relatifs ou écrits avec des `/` (pas de chemin Windows absolu avec antislashs).
 
 Les autres tools ci-dessous sont la cible. Leurs noms sont provisoires et seront alignés sur ceux des tools du chat (français, camelCase : `listerIngredients`, `genererRecette`…) ; `list_ingredients` correspond à `listerIngredients`, déjà exposé.
 
@@ -254,7 +254,7 @@ Toutes les variables sont décrites dans [.env.example](.env.example) : fourniss
 - [ ] Faut-il garder un historique ou des favoris de recettes ?
 - [ ] Quotas et coût du proxy Nova Lite ; partage de la clé à trois.
 - [ ] Usage local uniquement, ou hébergement ?
-- [ ] Sécurité du serveur MCP : accès local seulement (`127.0.0.1`, sans authentification) retenu pour l'instant ; jeton à étudier si hébergement.
+- [ ] Sécurité du serveur MCP : accès local seulement (`127.0.0.1`, sans authentification) retenu pour l'instant ; un tunnel Cloudflare limité à `/mcp` permet un essai avec ChatGPT ([docs/mcp-tunnel-cloudflare.md](docs/mcp-tunnel-cloudflare.md)), mais une authentification (jeton Bearer, Cloudflare Access ou OAuth) reste à étudier avant toute donnée réelle.
 - [ ] Écritures concurrentes du profil `.md` (interface + MCP en même temps).
 - [x] Stratégie de tests : TDD, tests unitaires avec LLM simulé ; vérification en réel avec la démo terminal.
 

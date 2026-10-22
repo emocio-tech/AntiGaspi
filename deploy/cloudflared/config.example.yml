@@ -1,0 +1,19 @@
+# Gabarit de configuration du tunnel Cloudflare du serveur MCP (voir docs/mcp-tunnel-cloudflare.md).
+# À copier vers %USERPROFILE%\.cloudflared\config.yml (hors du dépôt) puis à adapter.
+# Ne jamais committer le fichier copié, cert.pem ni <UUID>.json : ce sont des secrets.
+
+# UUID affiché par « cloudflared tunnel create antigaspi-mcp »
+tunnel: <UUID>
+credentials-file: C:\Users\<utilisateur>\.cloudflared\<UUID>.json
+
+ingress:
+  - hostname: mcp.exemple.fr
+    # Seul /mcp traverse le tunnel : l'API REST du front (/api/...) ne doit jamais être publique.
+    path: ^/mcp(/.*)?$
+    # 127.0.0.1 et non localhost : le backend n'écoute qu'en IPv4.
+    service: http://127.0.0.1:8080
+    # À décommenter seulement si /mcp répond mal à travers le tunnel (en-tête Host refusé)
+    # originRequest:
+    #   httpHostHeader: 127.0.0.1:8080
+  # Règle finale obligatoire : tout le reste reçoit un 404
+  - service: http_status:404

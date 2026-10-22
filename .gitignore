@@ -56,3 +56,8 @@ target/
 
 # Configuration MCP locale de Claude Code (propre à chacun)
 .mcp.json
+
+# Tunnel Cloudflare : seul le gabarit config.example.yml est versionné, jamais les secrets
+deploy/cloudflared/config.yml
+deploy/cloudflared/*.json
+cert.pem

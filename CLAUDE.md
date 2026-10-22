@@ -52,6 +52,8 @@ fr.antigaspi
 - Frontend (depuis `frontend/`, Node 24) :
   - Installation : `npm ci`. Tests (sans réseau) : `npm test -- --no-watch`. Build : `npm run build`.
   - Lancement : démarrer le backend (`mvn -pl backend spring-boot:run`, port 8080), puis `npm start` ; l'appli est sur `http://localhost:4200` (pas `127.0.0.1` : le serveur écoute en IPv6).
+- Tunnel Cloudflare du serveur MCP pour ChatGPT (backend lancé avec le profil `mcp`) : `cloudflared tunnel run antigaspi-mcp`, avec une configuration copiée de `deploy/cloudflared/config.example.yml` ; procédure dans `docs/mcp-tunnel-cloudflare.md`.
+  - Le tunnel ne doit transmettre que `/mcp` (règle `path` du gabarit) : le backend sert aussi `/api/*`, qui modifie le profil et consomme le LLM. Le serveur MCP reste sans authentification : arrêter le tunnel après usage.
 - Sans Java, avec Docker : `docker compose build` (compile + tests), puis `docker compose run --rm backend` (démo). Le `.env` n'est jamais copié dans l'image (`.dockerignore`).
 
 ## Conventions
@@ -64,7 +66,7 @@ fr.antigaspi
 
 ## Restrictions
 - Ne jamais lire ni modifier `.env` (clés API), par aucun moyen. Seul `.env.example` est lisible.
-- Ne jamais committer `.env`, une clé API, `data/profil.md` ou `data/utensils.json`.
+- Ne jamais committer `.env`, une clé API, `data/profil.md` ou `data/utensils.json`, ni `cert.pem` ou `<UUID>.json` du tunnel Cloudflare.
 
 ## Méthode : TDD obligatoire
 Toute feature ou correction suit le cycle Red → Green → Refactor :
