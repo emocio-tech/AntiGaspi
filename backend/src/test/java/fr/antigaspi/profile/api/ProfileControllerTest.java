@@ -65,7 +65,8 @@ class ProfileControllerTest {
 
     @Test
     void get_renvoieLesPreferences() throws Exception {
-        mvc.perform(get("/api/profile")).andExpect(status().isOk()).andExpect(jsonPath("$.preferences.length()").value(2))
+        mvc.perform(get("/api/profile")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.preferences.length()").value(2))
                 .andExpect(jsonPath("$.preferences[0]").value("Végétarien le midi"))
                 .andExpect(jsonPath("$.preferences[1]").value("Sans coriandre"));
     }

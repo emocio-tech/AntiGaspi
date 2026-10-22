@@ -70,8 +70,7 @@ class ProfileServiceTest {
     @Test
     void updatePreferences_doublonSansTenirCompteDeLaCasse_estRefuse_sansRienEnregistrer() {
         assertThatThrownBy(() -> service.updatePreferences(List.of("Sans gluten", " sans GLUTEN")))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("La préférence « sans GLUTEN » est en double");
+                .isInstanceOf(IllegalArgumentException.class).hasMessage("La préférence « sans GLUTEN » est en double");
 
         assertThat(repository.saved).isEmpty();
     }

@@ -256,8 +256,7 @@ class ChatAssistantTest {
         assistant.reply("Qu'est-ce qui périme bientôt ?");
         assistant.reply("Et c'est quelle catégorie ?");
 
-        assertThat(assistant.history()).containsExactly(
-                new ChatEntry(ChatRole.USER, "Qu'est-ce qui périme bientôt ?"),
+        assertThat(assistant.history()).containsExactly(new ChatEntry(ChatRole.USER, "Qu'est-ce qui périme bientôt ?"),
                 new ChatEntry(ChatRole.ASSISTANT, "Des courgettes."),
                 new ChatEntry(ChatRole.USER, "Et c'est quelle catégorie ?"),
                 new ChatEntry(ChatRole.ASSISTANT, "Ce sont des légumes."));
