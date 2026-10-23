@@ -1,5 +1,6 @@
 # Profil MCP : serveur MCP en Streamable HTTP (endpoint /mcp), local et sans authentification.
-# Il n'expose que le tool listerIngredients (voir IngredientMcpConfig).
+# Il n'expose que les tools de l'inventaire : listerIngredients, ajouterIngredients, supprimerIngredients et
+# modifierIngredients (voir IngredientMcpConfig). Les trois derniers modifient la base MySQL.
 spring:
   ai:
     mcp:

@@ -81,16 +81,28 @@ Chaque utilisateur a un fichier Markdown de profil (préférences alimentaires, 
 ### 5. Serveur MCP
 Un serveur [MCP (Model Context Protocol)](https://modelcontextprotocol.io) intégré au backend expose les fonctionnalités de l'application à un assistant compatible (Claude Desktop, Claude Code…). Il réutilise les mêmes services métier que l'API REST.
 
-**État actuel** : le serveur MCP est servi en Streamable HTTP sur `/mcp`, avec le profil Spring `mcp`. Il expose uniquement le tool `listerIngredients` (inventaire trié par urgence ; filtres facultatifs `categorie`, `joursMax`, `limite`). Il écoute sur `127.0.0.1` seulement, sans authentification, et s'utilise hors conteneur :
+**État actuel** : le serveur MCP est servi en Streamable HTTP sur `/mcp`, avec le profil Spring `mcp`. Il expose uniquement les tools de l'inventaire :
+
+| Tool | Rôle |
+|---|---|
+| `listerIngredients` | inventaire trié par urgence ; filtres facultatifs `categorie`, `joursMax`, `limite` |
+| `ajouterIngredients` | ajoute un ou plusieurs aliments (`nom`, `categorie`, `quantite`, `unite`, `datePeremption` facultative) |
+| `supprimerIngredients` | supprime un ou plusieurs aliments par identifiant |
+| `modifierIngredients` | modifie un ou plusieurs aliments par identifiant (seuls les champs renseignés changent ; `effacerDatePeremption` retire la date) |
+
+Les trois tools d'écriture sont atomiques : si un élément est refusé (identifiant inconnu ou en double, nom vide, quantité non positive…), rien n'est écrit et le message de refus est renvoyé. Ils sont réservés au MCP : le chat avec le chef ne peut que lire l'inventaire.
+
+Le serveur écoute sur `127.0.0.1` seulement, sans authentification, et s'utilise hors conteneur. L'inventaire est dans MySQL : démarrer d'abord la base (`docker compose up -d mysql`).
 
 ```
+docker compose up -d mysql
 mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=mcp
 claude mcp add --transport http antigaspi http://127.0.0.1:8080/mcp
 ```
 
-Sans authentification, tout processus local peut lire l'inventaire. Pour l'ouvrir à un assistant hébergé dans le cloud (ChatGPT, par exemple), voir [docs/mcp-tunnel-cloudflare.md](docs/mcp-tunnel-cloudflare.md) : tunnel Cloudflare limité à `/mcp`, toujours sans authentification, donc à arrêter quand on ne l'utilise pas. Les chemins `PROFILE_PATH` et `UTENSILS_PATH` doivent être relatifs ou écrits avec des `/` (pas de chemin Windows absolu avec antislashs).
+Sans authentification, tout processus local peut lire et modifier l'inventaire. Pour l'ouvrir à un assistant hébergé dans le cloud (ChatGPT, par exemple), voir [docs/mcp-tunnel-cloudflare.md](docs/mcp-tunnel-cloudflare.md) : tunnel Cloudflare limité à `/mcp`, toujours sans authentification, donc à arrêter quand on ne l'utilise pas. Les chemins `PROFILE_PATH` et `UTENSILS_PATH` doivent être relatifs ou écrits avec des `/` (pas de chemin Windows absolu avec antislashs).
 
-Les autres tools ci-dessous sont la cible. Leurs noms sont provisoires et seront alignés sur ceux des tools du chat (français, camelCase : `listerIngredients`, `genererRecette`…) ; `list_ingredients` correspond à `listerIngredients`, déjà exposé.
+Les autres tools ci-dessous sont la cible. Leurs noms sont provisoires et seront alignés sur ceux des tools du chat (français, camelCase : `listerIngredients`, `genererRecette`…) ; `list_ingredients` correspond à `listerIngredients`, et `add_ingredient` / `update_ingredient` / `remove_ingredient` à `ajouterIngredients` / `modifierIngredients` / `supprimerIngredients`, déjà exposés.
 
 Tools proposés :
 
@@ -98,7 +110,7 @@ Tools proposés :
 |---|---|
 | `list_ingredients` | lister l'inventaire, trié par urgence |
 | `get_expiring_ingredients` | ingrédients à consommer sous N jours |
-| `add_ingredient` / `update_ingredient` / `remove_ingredient` | gérer la liste |
+| `add_ingredient` / `update_ingredient` / `remove_ingredient` | gérer la liste (fait : `ajouterIngredients`, `modifierIngredients`, `supprimerIngredients`, un ou plusieurs aliments par appel) |
 | `consume_ingredients` | retirer / décrémenter les ingrédients utilisés par une recette |
 | `get_profile` | lire le profil (préférences) |
 | `update_preferences` | modifier les préférences du profil |
@@ -121,7 +133,7 @@ Versions **proposées**, à confirmer à l'initialisation du code.
 |---|---|
 | Backend | Java 21, Spring Boot 4, Spring AI 2, Maven |
 | Frontend | Angular (web app responsive) |
-| Base de données | PostgreSQL (docker-compose en dev), H2 en mémoire pour les tests, migrations Flyway |
+| Base de données | MySQL 8.4 (docker-compose en dev), H2 en mémoire pour les tests, migrations Flyway |
 | LLM | Spring AI `ChatClient` (starter OpenAI) — Nova Lite via le proxy compatible OpenAI de la formation |
 | MCP | Spring AI MCP Server, intégré au backend |
 | Profil utilisateur | fichier `data/profil.md` (gitignoré ; un gabarit sera versionné) |
@@ -134,7 +146,7 @@ flowchart LR
     MCPC["Client MCP<br/>(Claude…)"] -->|MCP| MCPS["Serveur MCP"]
     API --> SVC["Services métier<br/>inventaire · ustensiles · recettes · profil"]
     MCPS --> SVC
-    SVC --> DB[("PostgreSQL<br/>ingrédients · ustensiles")]
+    SVC --> DB[("MySQL<br/>ingrédients · ustensiles")]
     SVC --> MD["data/profil.md<br/>préférences · retours"]
     SVC --> LLM["LLM via Spring AI<br/>Nova Lite (proxy OpenAI) par défaut"]
 ```
@@ -164,7 +176,7 @@ Table `utensil` (ustensiles disponibles) :
 
 Les recettes générées pourront être stockées à partir de leur [format JSON standardisé](docs/format-recette.md), qui propose aussi un schéma de tables.
 
-> Pour l'instant, ingrédients et ustensiles sont des fichiers JSON (`backend/src/main/resources/data/`), derrière les interfaces `IngredientRepository` et `UtensilRepository`. Les ustensiles modifiés par le chat sont enregistrés dans `data/utensils.json` (gitignoré, variable `UTENSILS_PATH`), créé à la première modification.
+> Les **ingrédients** sont dans MySQL (table `ingredient`, schéma créé par la migration Flyway `V1__ingredient.sql`), derrière `IngredientRepository` / `MutableIngredientRepository`. Au premier démarrage, une table vide est remplie avec `backend/src/main/resources/data/ingredients.json` (`IngredientSeeder`). Connexion : `DB_URL`, `DB_USER`, `DB_PASSWORD` (valeurs de développement par défaut, base lancée par `docker compose up -d mysql`). Les **ustensiles** restent un fichier JSON derrière `UtensilRepository` : ceux modifiés par le chat sont enregistrés dans `data/utensils.json` (gitignoré, variable `UTENSILS_PATH`), créé à la première modification.
 
 ### Catégories proposées
 Fruits, légumes, produits laitiers, viandes & poissons, œufs, féculents, épicerie sèche, conserves, surgelés, boissons, condiments.
@@ -182,7 +194,7 @@ AntiGaspi/
 ├── docs/
 │   └── maquettes/       # maquettes / wireframes
 ├── Dockerfile           # image du backend (build Maven + JRE 21), aucun Java requis sur l'hôte
-├── docker-compose.yml   # service backend (PostgreSQL à ajouter)
+├── docker-compose.yml   # services mysql (base) et backend
 ├── .env.example         # gabarit des variables d'environnement
 └── .claude/             # config Claude Code partagée (agents, skills, hooks, permissions)
 ```
@@ -231,7 +243,7 @@ Toutes les variables sont décrites dans [.env.example](.env.example) : fourniss
 | Sujet | Décision | Date |
 |---|---|---|
 | Stack | Java (Spring Boot, Maven) + Angular, web app responsive | 2026-10-19 |
-| Base de données | PostgreSQL pour les ingrédients et les ustensiles (les recettes plus tard) | 2026-10-20 |
+| Base de données | MySQL (en remplacement de PostgreSQL, prévu à l'origine) pour les ingrédients, puis les ustensiles (les recettes plus tard) | 2026-10-22 |
 | Feedback | pas de table : enrichit le profil `.md`, consolidé par le LLM | 2026-10-19 |
 | Utilisateurs | mono-utilisateur pour le MVP, pas d'authentification | 2026-10-19 |
 | LLM | Nova Lite via le proxy compatible OpenAI de la formation (accès direct à Bedrock abandonné), fournisseur interchangeable par configuration | 2026-10-20 |
@@ -243,7 +255,7 @@ Toutes les variables sont décrites dans [.env.example](.env.example) : fourniss
 | Secrets | clé API dans `.env`, lecture interdite à Claude Code | 2026-10-19 |
 | Méthode | TDD obligatoire : tests écrits avant le code (voir [CLAUDE.md](CLAUDE.md)) | 2026-10-20 |
 | Versions | Spring Boot 4.1 / Spring AI 2.0 (Spring Boot 3 n'est plus proposé par Spring Initializr) | 2026-10-20 |
-| Données de test | inventaire statique JSON en jours relatifs, en attendant PostgreSQL | 2026-10-20 |
+| Données de test | inventaire initial JSON en jours relatifs (`ingredients.json`), inséré en base au premier démarrage | 2026-10-22 |
 
 ## Questions ouvertes
 
@@ -260,7 +272,7 @@ Toutes les variables sont décrites dans [.env.example](.env.example) : fourniss
 
 ## Roadmap
 
-1. **Socle** — POM parent, backend Spring Boot, PostgreSQL (docker-compose), table `ingredient`, données d'amorçage
+1. **Socle** — POM parent, backend Spring Boot, MySQL (docker-compose), table `ingredient`, données d'amorçage
 2. **Inventaire** — API REST + écran Inventaire (tri par urgence, couleurs, estimation de péremption)
 3. **Recettes** — appel LLM (Nova Lite) via Spring AI, affichage structuré
 4. **Profil & feedback** — `profil.md`, écran Profil (préférences, ustensiles), boucle de feedback
