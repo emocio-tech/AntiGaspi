@@ -6,8 +6,8 @@ Application anti-gaspillage : inventaire d'aliments triés par urgence de pérem
 - Backend : Java 21, Spring Boot 4, Spring AI 2, Maven multi-module (`pom.xml` agrégateur à la racine, module `backend/`).
 - Frontend : Angular 22 (composants autonomes, signaux, `httpResource`), dans `frontend/`. Design issu de Claude Design (projet « Maquettes UI formulaire », design system Emocio) : tokens dans `frontend/src/styles/tokens.css`, police Quicksand (Fontsource), icônes `@lucide/angular`. Tests Vitest via `ng test`.
 - LLM : Spring AI `ChatClient`, isolé derrière l'interface `RecipeGenerator`. Nova Lite via le proxy compatible OpenAI de la formation (starter Spring AI OpenAI ; variables `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL=nova-lite`).
-- MCP : Spring AI MCP Server (starter webmvc, Streamable HTTP), actif uniquement avec le profil `mcp`. Tools exposés : `listerIngredients` (lecture) et `ajouterIngredients`, `supprimerIngredients`, `modifierIngredients` (écriture, un ou plusieurs aliments, atomiques, MCP uniquement).
-- Données : l'inventaire est dans **MySQL** (JPA, schéma géré par Flyway dans `backend/src/main/resources/db/migration/`, base lancée par `docker compose up -d mysql`, connexion `DB_URL`/`DB_USER`/`DB_PASSWORD` avec valeurs de développement par défaut) ; au premier démarrage une table vide est remplie depuis `data/ingredients.json` (`IngredientSeeder`). Les tests utilisent H2 en mémoire (aucun MySQL requis). Les ustensiles restent en fichier JSON (`data/utensils.json` gitignoré pour ceux modifiés par le chat), derrière des interfaces `*Repository` qui seront implémentées en base.
+- MCP : Spring AI MCP Server (starter webmvc, Streamable HTTP), actif uniquement avec le profil `mcp`.
+- Données : inventaire et ustensiles en fichiers JSON (`backend/src/main/resources/data/` ; les ustensiles modifiés par le chat vont dans `data/utensils.json`, gitignoré), derrière des interfaces `*Repository` qui seront implémentées en base (PostgreSQL).
 - Profil utilisateur (préférences alimentaires) : fichier Markdown `data/profil.md` (gitignoré), gabarit `data/profil.example.md`.
 - Recette : format JSON standardisé (`title`, `servings`, `preparationMinutes`, `utensils`, `ingredients`, `steps`), décrit dans `docs/format-recette.md`.
 
@@ -16,7 +16,7 @@ Découpage **par fonctionnalité**, puis par couche à l'intérieur de chaque fo
 
 ```
 fr.antigaspi
-├── ingredient/   model/ (Ingredient, Category, Unit, Urgency, IngredientView, NewIngredient, IngredientUpdate) · repository/ (IngredientRepository : lecture seule, MutableIngredientRepository : lecture et écriture, JpaIngredientRepository + IngredientEntity : MySQL, IngredientSeeder : données initiales, JsonIngredientRepository : lecture du JSON initial seulement) · service/ (IngredientService : lecture, IngredientEditService : ajout, suppression, modification atomiques) · api/ (IngredientController : GET /api/ingredients et /api/ingredients/categories, IngredientExceptionHandler : 400 avec `{"message"}`) · tool/ (IngredientTools : tool LLM listerIngredients · IngredientEditTools : tools d'écriture, sans `ChatTools` donc absents du chat · IngredientMcpConfig : expose ces tools au serveur MCP, profil `mcp`)
+├── ingredient/   model/ (Ingredient, Category, Unit, Urgency, IngredientView) · repository/ · service/ · api/ (IngredientController : GET /api/ingredients et /api/ingredients/categories, IngredientExceptionHandler : 400 avec `{"message"}`) · tool/ (IngredientTools : tool LLM listerIngredients · IngredientMcpConfig : expose ce seul tool au serveur MCP, profil `mcp`)
 ├── utensil/      model/ (Utensil) · repository/ · service/ (UtensilNotFoundException → 404) · api/ (UtensilController : GET, POST, DELETE /api/utensils) · tool/ (UtensilTools : tools LLM listUtensils, addUtensil, removeUtensil)
 ├── profile/      model/ (UserProfile) · repository/ (Markdown : lecture et réécriture de la seule section Préférences) · service/ · api/ (ProfileController : GET et PUT /api/profile) · tool/ (ProfileTools : tool LLM consulterPreferences)
 ├── recipe/       model/ (Recipe, RecipeIngredient, RecipeRequest, RecipeContext, GeneratedRecipe, RecipeIssue) · service/ (RecipeService, RecipeChecker : garde-fou post-LLM) · api/ (RecipeController : POST /api/recipes, une recette et un appel LLM par requête ; RecipeExceptionHandler : 502 si le LLM échoue) · llm/ (RecipeGenerator, Spring AI, prompts) · tool/ (RecipeTools : tool LLM genererRecette, génération + garde-fou en un appel) · cli/ (démo terminal)
@@ -26,7 +26,7 @@ fr.antigaspi
 ```
 
 - `model/` : records et enums métier, sans dépendance à Spring.
-- `repository/` : interface `XxxRepository` + implémentation actuelle (`JpaIngredientRepository`, `JsonUtensilRepository`, `MarkdownProfileRepository`) ; l'implémentation JPA des ustensiles viendra ici.
+- `repository/` : interface `XxxRepository` + implémentation actuelle (`JsonXxxRepository`, `MarkdownProfileRepository`) ; l'implémentation JPA viendra ici.
 - `service/` : logique métier, seul point d'entrée pour les futurs `api/` (REST) et MCP.
 - `llm/` : tout ce qui dépend du fournisseur de LLM, derrière `RecipeGenerator`.
 - `tool/` : tools Spring AI (`@Tool`) d'une fonctionnalité, appelables par le LLM ; ils délèguent au service, sans logique métier. La classe implémente `ChatTools` pour être exposée au chat automatiquement.
@@ -41,15 +41,13 @@ fr.antigaspi
 - Les écrans de génération appellent le vrai LLM : aucun test ne le fait, la vérification en réel se fait en lançant backend et front (`npm start`).
 
 ## Commandes
-- Tous les tests (sans appel LLM ni MySQL, base H2 en mémoire) : `mvn -q verify`
-- Lancer le backend (profils par défaut, `demo`, `chat`, `mcp`) exige MySQL : `docker compose up -d mysql` d'abord.
+- Tous les tests (sans appel LLM) : `mvn -q verify`
 - Une classe de test : `mvn -q test -pl backend -Dtest=Classe#methode`
 - Formatage : `mvn formatter:format` (le hook pre-commit lance `formatter:validate`)
 - Démo en terminal (aliments urgents + 10 recettes JSON + bilan des échecs, appels réels au LLM) : `mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=demo`
 - Démo chat en terminal (le LLM appelle les tools inventaire, ustensiles, préférences et génération de recette au besoin, `quitter` pour sortir) : `mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=chat`
-- Serveur MCP Streamable HTTP (tools d'inventaire : lecture et écriture, sans authentification, hors conteneur) : `mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=mcp`, puis `claude mcp add --transport http antigaspi http://127.0.0.1:8080/mcp`.
+- Serveur MCP Streamable HTTP (tool `listerIngredients` seul, sans authentification, hors conteneur) : `mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=mcp`, puis `claude mcp add --transport http antigaspi http://127.0.0.1:8080/mcp`.
   - Il écoute sur `127.0.0.1`, port 8080 par défaut. Ne pas combiner `mcp` avec `demo` ou `chat` : ces profils coupent le serveur web (`web-application-type: none`).
-  - Ne pas laisser le tunnel Cloudflare ouvert : sans authentification, le MCP permet désormais de modifier l'inventaire, pas seulement de le lire.
   - Le serveur MCP est désactivé par défaut (`spring.ai.mcp.server.enabled: false` dans `application.yml`) ; `application-mcp.yml` le réactive et fixe `protocol`, `name`, `version` et `server.address`.
 - Frontend (depuis `frontend/`, Node 24) :
   - Installation : `npm ci`. Tests (sans réseau) : `npm test -- --no-watch`. Build : `npm run build`.

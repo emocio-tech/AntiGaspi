@@ -9,6 +9,7 @@ import java.util.List;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
+import org.springframework.stereotype.Repository;
 
 import fr.antigaspi.common.Resources;
 
@@ -19,12 +20,10 @@ import fr.antigaspi.ingredient.model.Ingredient;
 import fr.antigaspi.ingredient.model.Unit;
 
 /**
- * Inventaire initial chargé depuis un fichier JSON. Les dates y sont exprimées en jours relatifs à aujourd'hui
- * ({@code expiresInDays}, {@code addedDaysAgo}) pour que les données de test ne se périment pas.
- * <p>
- * Ce n'est plus l'inventaire de l'application (la base MySQL, {@link JpaIngredientRepository}) : il sert de source de
- * données initiales à {@link IngredientSeeder}.
+ * Inventaire statique chargé depuis un fichier JSON au démarrage. Les dates y sont exprimées en jours relatifs à
+ * aujourd'hui ({@code expiresInDays}, {@code addedDaysAgo}) pour que les données de test ne se périment pas.
  */
+@Repository
 public class JsonIngredientRepository implements IngredientRepository {
 
     /**

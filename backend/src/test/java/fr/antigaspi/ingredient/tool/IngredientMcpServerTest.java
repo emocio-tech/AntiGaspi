@@ -28,9 +28,6 @@ import org.springframework.test.context.ActiveProfiles;
 import fr.antigaspi.ingredient.model.Category;
 import fr.antigaspi.ingredient.model.Ingredient;
 import fr.antigaspi.ingredient.model.Unit;
-import fr.antigaspi.ingredient.repository.InMemoryIngredientRepository;
-import fr.antigaspi.ingredient.repository.MutableIngredientRepository;
-import fr.antigaspi.ingredient.service.IngredientEditService;
 import fr.antigaspi.ingredient.service.IngredientService;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -48,37 +45,17 @@ class IngredientMcpServerTest {
     private static final LocalDate TODAY = LocalDate.of(2026, 10, 20);
     private static final JsonMapper MAPPER = JsonMapper.builder().build();
 
-    private static final Clock CLOCK = Clock.fixed(NOW, ZoneOffset.UTC);
-
-    /** Inventaire servi au test en cours, à la place de la base (la lecture et l'écriture passent par lui). */
-    private static final InMemoryIngredientRepository REPOSITORY = new InMemoryIngredientRepository();
+    /** Inventaire servi au test en cours (ordre d'entrée volontairement différent de l'ordre d'urgence). */
+    private static volatile List<Ingredient> inventaire;
 
     @TestConfiguration
     static class InventaireDeTest {
 
         @Bean
         @Primary
-        MutableIngredientRepository repositoryDeTest() {
-            return REPOSITORY;
-        }
-
-        @Bean
-        @Primary
         IngredientService ingredientServiceDeTest() {
-            return new IngredientService(REPOSITORY, CLOCK);
+            return new IngredientService(() -> inventaire, Clock.fixed(NOW, ZoneOffset.UTC));
         }
-
-        @Bean
-        @Primary
-        IngredientEditService ingredientEditServiceDeTest() {
-            return new IngredientEditService(REPOSITORY, CLOCK);
-        }
-    }
-
-    /** Remplace tout l'inventaire (ordre d'entrée volontairement différent de l'ordre d'urgence). */
-    private static void remplacerInventaire(Ingredient... ingredients) {
-        REPOSITORY.deleteAllById(REPOSITORY.findAll().stream().map(Ingredient::id).toList());
-        REPOSITORY.saveAll(List.of(ingredients));
     }
 
     @LocalServerPort
@@ -89,7 +66,7 @@ class IngredientMcpServerTest {
 
     @BeforeEach
     void inventaireParDefaut() {
-        remplacerInventaire(
+        inventaire = List.of(
                 new Ingredient(1L, "Yaourts", Category.PRODUITS_LAITIERS, new BigDecimal("4"), Unit.PIECE,
                         TODAY.plusDays(10), NOW),
                 new Ingredient(2L, "Courgettes", Category.LEGUMES, new BigDecimal("2.5"), Unit.KG, TODAY.plusDays(2),
@@ -99,46 +76,14 @@ class IngredientMcpServerTest {
     }
 
     @Test
-    void toolsList_neContientQueLesToolsDeLInventaire() throws Exception {
+    void toolsList_neContientQueListerIngredients() throws Exception {
         initialiserSession();
 
         JsonNode result = rpc("tools/list", "{}").get("result");
 
         List<String> noms = new ArrayList<>();
         result.get("tools").forEach(tool -> noms.add(tool.get("name").asString()));
-        assertThat(noms).containsExactlyInAnyOrder("listerIngredients", "ajouterIngredients", "supprimerIngredients",
-                "modifierIngredients");
-    }
-
-    @Test
-    void toolsCall_ajouterModifierSupprimer_sontVisiblesDansListerIngredients() throws Exception {
-        initialiserSession();
-
-        JsonNode ajout = appeler("ajouterIngredients", """
-                {"aliments":[
-                  {"nom":"Pommes","categorie":"FRUITS","quantite":6,"unite":"PIECE","datePeremption":"2026-10-21"},
-                  {"nom":"Riz","categorie":"FECULENTS","quantite":500,"unite":"G"}]}""");
-        assertThat(estErreur(ajout)).isFalse();
-        assertThat(nomsListes()).containsExactly("Lait", "Pommes", "Courgettes", "Yaourts", "Riz");
-
-        JsonNode modification = appeler("modifierIngredients",
-                "{\"modifications\":[{\"id\":2,\"datePeremption\":\"2026-12-01\",\"quantite\":1}]}");
-        assertThat(estErreur(modification)).isFalse();
-        assertThat(nomsListes()).containsExactly("Lait", "Pommes", "Yaourts", "Courgettes", "Riz");
-
-        JsonNode suppression = appeler("supprimerIngredients", "{\"ids\":[3,1]}");
-        assertThat(estErreur(suppression)).isFalse();
-        assertThat(nomsListes()).containsExactly("Pommes", "Courgettes", "Riz");
-    }
-
-    @Test
-    void toolsCall_suppressionRefusee_renvoieLaRaisonSansRienSupprimer() throws Exception {
-        initialiserSession();
-
-        JsonNode result = appeler("supprimerIngredients", "{\"ids\":[1,99]}");
-
-        assertThat(result.get("content").get(0).get("text").asString()).contains("99");
-        assertThat(nomsListes()).containsExactly("Lait", "Courgettes", "Yaourts");
+        assertThat(noms).containsExactly("listerIngredients");
     }
 
     @Test
@@ -157,7 +102,7 @@ class IngredientMcpServerTest {
 
     @Test
     void toolsCall_inventaireVide_renvoieUneListeVideSansErreur() throws Exception {
-        remplacerInventaire();
+        inventaire = List.of();
         initialiserSession();
 
         JsonNode result = appelerLister("{}");
@@ -191,19 +136,7 @@ class IngredientMcpServerTest {
     }
 
     private JsonNode appelerLister(String arguments) throws Exception {
-        return appeler("listerIngredients", arguments);
-    }
-
-    private JsonNode appeler(String tool, String arguments) throws Exception {
-        return rpc("tools/call", "{\"name\":\"" + tool + "\",\"arguments\":" + arguments + "}").get("result");
-    }
-
-    /** Noms de l'inventaire dans l'ordre renvoyé par listerIngredients (du plus urgent au moins urgent). */
-    private List<String> nomsListes() throws Exception {
-        JsonNode aliments = MAPPER.readTree(appelerLister("{}").get("content").get(0).get("text").asString());
-        List<String> noms = new ArrayList<>();
-        aliments.forEach(aliment -> noms.add(aliment.get("nom").asString()));
-        return noms;
+        return rpc("tools/call", "{\"name\":\"listerIngredients\",\"arguments\":" + arguments + "}").get("result");
     }
 
     private void initialiserSession() throws Exception {

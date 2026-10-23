@@ -1,28 +1,8 @@
 # Lancer le backend sans Java installé :
 #   docker compose build              compile et lance les tests (première fois : quelques minutes)
-#   docker compose run --rm backend   démo : aliments urgents + recette générée, puis arrêt (démarre MySQL au besoin)
+#   docker compose run --rm backend   démo : aliments urgents + recette générée, puis arrêt
 #   SPRING_PROFILES_ACTIVE=chat docker compose run --rm backend   chat en terminal avec le LLM
-# Backend lancé avec Maven (hors conteneur) : docker compose up -d mysql, puis mvn -pl backend spring-boot:run
 services:
-  mysql:
-    image: mysql:8.4
-    # Identifiants de développement, surchargeables par l'environnement ou le .env de la racine
-    environment:
-      MYSQL_DATABASE: antigaspi
-      MYSQL_USER: ${DB_USER:-antigaspi}
-      MYSQL_PASSWORD: ${DB_PASSWORD:-antigaspi}
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-antigaspi-root}
-    volumes:
-      - mysql-data:/var/lib/mysql
-    ports:
-      # Publié sur la boucle locale seulement, pour un backend lancé avec Maven
-      - "127.0.0.1:3306:3306"
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-p${DB_ROOT_PASSWORD:-antigaspi-root}"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
-
   backend:
     build: .
     image: antigaspi-backend
@@ -31,16 +11,9 @@ services:
     # Terminal interactif pour la démo chat (saisie au clavier)
     stdin_open: true
     tty: true
-    depends_on:
-      mysql:
-        condition: service_healthy
     environment:
       # Dans le conteneur, le profil est dans le dossier data/ monté ci-dessous (remplace PROFILE_PATH du .env)
       PROFILE_PATH: /app/data/profil.md
-      # Dans le réseau compose, la base est jointe par le nom du service
-      DB_URL: jdbc:mysql://mysql:3306/antigaspi
-      DB_USER: ${DB_USER:-antigaspi}
-      DB_PASSWORD: ${DB_PASSWORD:-antigaspi}
       # Par défaut, on lance la démo en terminal. Le profil mcp (serveur MCP) est prévu hors conteneur :
       # il écoute 127.0.0.1, donc le port publié ci-dessous serait injoignable depuis l'hôte.
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-demo}
@@ -48,6 +21,3 @@ services:
       - ./data:/app/data:ro
     ports:
       - "8080:8080"
-
-volumes:
-  mysql-data:

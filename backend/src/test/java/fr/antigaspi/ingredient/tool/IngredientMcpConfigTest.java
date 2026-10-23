@@ -11,23 +11,18 @@ import org.junit.jupiter.api.Test;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.ToolCallbackProvider;
 
-import fr.antigaspi.ingredient.repository.InMemoryIngredientRepository;
-import fr.antigaspi.ingredient.service.IngredientEditService;
 import fr.antigaspi.ingredient.service.IngredientService;
 
 class IngredientMcpConfigTest {
 
     @Test
-    void serveurMcp_exposeLesToolsDeConsultationEtDeModificationDeLInventaire() {
-        Clock clock = Clock.fixed(Instant.parse("2026-10-20T10:00:00Z"), ZoneOffset.UTC);
-        IngredientTools tools = new IngredientTools(new IngredientService(List::of, clock));
-        IngredientEditTools editTools = new IngredientEditTools(
-                new IngredientEditService(new InMemoryIngredientRepository(), clock));
+    void serveurMcp_exposeUniquementListerIngredients() {
+        IngredientTools tools = new IngredientTools(
+                new IngredientService(List::of, Clock.fixed(Instant.parse("2026-10-20T10:00:00Z"), ZoneOffset.UTC)));
 
-        ToolCallbackProvider provider = new IngredientMcpConfig().ingredientToolCallbackProvider(tools, editTools);
+        ToolCallbackProvider provider = new IngredientMcpConfig().ingredientToolCallbackProvider(tools);
 
         assertThat(provider.getToolCallbacks()).extracting(ToolCallback::getToolDefinition)
-                .extracting(definition -> definition.name()).containsExactlyInAnyOrder("listerIngredients",
-                        "ajouterIngredients", "supprimerIngredients", "modifierIngredients");
+                .extracting(definition -> definition.name()).containsExactly("listerIngredients");
     }
 }
