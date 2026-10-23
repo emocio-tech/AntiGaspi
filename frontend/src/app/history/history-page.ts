@@ -13,6 +13,11 @@ import { HistoryStore } from './history-store';
 export class HistoryPage {
   protected readonly store = inject(HistoryStore);
 
+  constructor() {
+    // Données possiblement périmées (recette cuisinée entre-temps) : on les recharge au retour sur l'écran
+    if (this.store.loaded()) this.store.reload();
+  }
+
   private readonly dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long', timeZone: 'UTC' });
 
   /** Id des recettes dont le détail est déplié. */

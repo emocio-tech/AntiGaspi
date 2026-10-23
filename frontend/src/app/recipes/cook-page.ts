@@ -3,6 +3,7 @@ import { Component, computed, inject, input, signal } from '@angular/core';
 import { RouterLink, Router } from '@angular/router';
 import { LucideArrowLeft, LucideThumbsDown, LucideThumbsUp } from '@lucide/angular';
 import { messageOf } from '../api-error';
+import { HistoryStore } from '../history/history-store';
 import { Ingredient } from '../inventory/ingredient.model';
 import { InventoryStore } from '../inventory/inventory-store';
 import { formatQuantity } from '../inventory/urgency';
@@ -35,6 +36,7 @@ export class CookPage {
   private readonly router = inject(Router);
   private readonly recipes = inject(RecipeStore);
   private readonly inventory = inject(InventoryStore);
+  private readonly history = inject(HistoryStore);
 
   /** Position de la recette dans la liste proposée (paramètre de route). */
   readonly id = input.required<string>();
@@ -90,7 +92,9 @@ export class CookPage {
       .post('/api/cooked-recipes', { recipe: result.recipe, rating: this.rating(), comment: comment || null, consumed })
       .subscribe({
         next: () => {
-          this.router.navigateByUrl('/inventaire').then(() => this.inventory.reload());
+          this.inventory.reload();
+          this.history.reload();
+          this.router.navigateByUrl('/inventaire');
         },
         error: (error: unknown) => {
           this.error.set(messageOf(error));

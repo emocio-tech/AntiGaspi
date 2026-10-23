@@ -16,6 +16,11 @@ import { Ingredient, Urgency } from './ingredient.model';
 })
 export class InventoryPage {
   protected readonly store = inject(InventoryStore);
+  constructor() {
+    // Inventaire possiblement périmé (cuisson, chat) : on le recharge au retour sur l'écran
+    if (this.store.loaded()) this.store.reload();
+  }
+
   protected readonly style = URGENCY_STYLE;
   protected readonly formatQuantity = formatQuantity;
   protected readonly urgencyLabel = urgencyLabel;

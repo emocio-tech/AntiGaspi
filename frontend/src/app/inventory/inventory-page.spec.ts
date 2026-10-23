@@ -230,4 +230,18 @@ describe('InventoryPage', () => {
       }
     });
   });
+
+  it('recharge la liste quand on revient sur l’écran', async () => {
+    await afficher(inventaire());
+    fixture.destroy();
+
+    fixture = TestBed.createComponent(InventoryPage);
+    fixture.detectChanges();
+    http.expectOne('/api/ingredients').flush([ingredient({ id: 9, name: 'Beurre', daysLeft: 1, urgency: 'SOON' })]);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(texte()).toContain('Beurre');
+    expect(texte()).not.toContain('Courgettes');
+  });
 });

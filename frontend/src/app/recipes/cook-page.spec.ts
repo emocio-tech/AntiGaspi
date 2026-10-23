@@ -42,6 +42,8 @@ describe('CookPage', () => {
   function repondreInventaire(aliments: Ingredient[]) {
     TestBed.tick();
     http.match('/api/ingredients').forEach((req) => req.flush(aliments));
+    // L'écran injecte aussi le store d'historique, qui charge sa liste à la création
+    http.match({ method: 'GET', url: '/api/cooked-recipes' }).forEach((req) => req.flush([]));
   }
 
   /** Charge l'inventaire, fait recevoir `recette` au store, puis ouvre l'écran de la recette à `id`. */
@@ -137,6 +139,7 @@ describe('CookPage', () => {
         http.expectNone({ method: 'POST', url: '/api/cooked-recipes' });
       } finally {
         http.match('/api/ingredients').forEach((req) => req.flush([courgettes()]));
+        http.match({ method: 'GET', url: '/api/cooked-recipes' }).forEach((req) => req.flush([]));
         http.match({ method: 'POST', url: '/api/cooked-recipes' }).forEach((req) => req.flush({}));
       }
     });
@@ -181,6 +184,8 @@ describe('CookPage', () => {
       const req = http.expectOne({ method: 'POST', url: '/api/cooked-recipes' });
       expect(req.request.body).toEqual(corpsAttendu());
       req.flush(null, { status: 201, statusText: 'Created' });
+      TestBed.tick();
+      http.match({ method: 'GET' }).forEach((r) => r.flush([]));
       await fixture.whenStable();
       http.match('/api/ingredients').forEach((r) => r.flush([]));
     });
@@ -198,6 +203,8 @@ describe('CookPage', () => {
         corpsAttendu({ rating: 'DOWN', comment: 'Trop salé', consumed: [{ ingredientId: 2, quantity: 1.5 }] }),
       );
       req.flush(null, { status: 201, statusText: 'Created' });
+      TestBed.tick();
+      http.match({ method: 'GET' }).forEach((r) => r.flush([]));
       await fixture.whenStable();
       http.match('/api/ingredients').forEach((r) => r.flush([]));
     });
@@ -226,6 +233,8 @@ describe('CookPage', () => {
       expect(req.request.body.consumed).toEqual([{ ingredientId: 2, quantity: 2.5 }]);
       expect(req.request.body.comment).toBeNull();
       req.flush(null, { status: 201, statusText: 'Created' });
+      TestBed.tick();
+      http.match({ method: 'GET' }).forEach((r) => r.flush([]));
       await fixture.whenStable();
       http.match('/api/ingredients').forEach((r) => r.flush([]));
     });
@@ -244,6 +253,8 @@ describe('CookPage', () => {
       const req = http.expectOne({ method: 'POST', url: '/api/cooked-recipes' });
       expect(req.request.body.consumed).toEqual([{ ingredientId: 2, quantity: 2.5 }]);
       req.flush(null, { status: 201, statusText: 'Created' });
+      TestBed.tick();
+      http.match({ method: 'GET' }).forEach((r) => r.flush([]));
       await fixture.whenStable();
       http.match('/api/ingredients').forEach((r) => r.flush([]));
     });
@@ -265,6 +276,8 @@ describe('CookPage', () => {
       const req = http.expectOne({ method: 'POST', url: '/api/cooked-recipes' });
       expect(champ<HTMLButtonElement>('cook-submit').disabled).toBe(true);
       req.flush(null, { status: 201, statusText: 'Created' });
+      TestBed.tick();
+      http.match({ method: 'GET' }).forEach((r) => r.flush([]));
       await fixture.whenStable();
       http.match('/api/ingredients').forEach((r) => r.flush([]));
     });
@@ -274,10 +287,10 @@ describe('CookPage', () => {
 
       valider();
       http.expectOne({ method: 'POST', url: '/api/cooked-recipes' }).flush(null, { status: 201, statusText: 'Created' });
-      await fixture.whenStable();
       TestBed.tick();
-
+      http.match({ method: 'GET', url: '/api/cooked-recipes' }).forEach((r) => r.flush([]));
       http.expectOne('/api/ingredients').flush([]);
+      await fixture.whenStable();
       expect(navigation).toHaveBeenCalledTimes(1);
       expect(navigation.mock.calls[0][0]).toBe('/inventaire');
     });
@@ -307,5 +320,18 @@ describe('CookPage', () => {
 
     expect(q('missing')).not.toBeNull();
     expect(html().querySelector('a[href="/recettes"]')).not.toBeNull();
+  });
+
+  it('recharge l’inventaire et l’historique après le succès, avant de naviguer', async () => {
+    await ouvrir();
+
+    valider();
+    http.expectOne({ method: 'POST', url: '/api/cooked-recipes' }).flush(null, { status: 201, statusText: 'Created' });
+    TestBed.tick();
+    const lectures = http.match({ method: 'GET' });
+    expect(lectures.map((r) => r.request.url).sort()).toEqual(['/api/cooked-recipes', '/api/ingredients']);
+    lectures.forEach((r) => r.flush([]));
+    await fixture.whenStable();
+    expect(navigation).toHaveBeenCalledTimes(1);
   });
 });

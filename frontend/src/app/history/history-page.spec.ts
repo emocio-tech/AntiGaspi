@@ -200,4 +200,17 @@ describe('HistoryPage', () => {
 
     http.expectOne('/api/cooked-recipes').flush([]);
   });
+
+  it('recharge la liste quand on revient sur l’écran', async () => {
+    await afficher();
+    fixture.destroy();
+
+    fixture = TestBed.createComponent(HistoryPage);
+    fixture.detectChanges();
+    http.expectOne('/api/cooked-recipes').flush([cooked({ id: 3, title: 'Omelette aux herbes' })]);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(textes('history-title')).toEqual(['Omelette aux herbes']);
+  });
 });

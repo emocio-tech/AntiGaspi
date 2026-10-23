@@ -18,6 +18,8 @@ export class InventoryStore {
     const hidden = [...this.pending(), ...this.sent()];
     return this.resource.value().filter((i) => !hidden.includes(i.id));
   });
+  /** Vrai dès qu'un premier inventaire a été reçu. */
+  readonly loaded = computed(() => this.resource.hasValue());
   readonly loading = computed(() => this.resource.isLoading());
   readonly error = computed(() => this.resource.error() !== undefined);
   /** Nombre d'aliments à consommer aujourd'hui ou dans les 3 jours. */

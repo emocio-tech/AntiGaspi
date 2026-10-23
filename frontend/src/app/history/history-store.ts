@@ -11,6 +11,8 @@ export class HistoryStore {
   private readonly resource = httpResource<CookedRecipe[]>(() => '/api/cooked-recipes');
 
   readonly items = computed<CookedRecipe[]>(() => (this.resource.hasValue() ? this.resource.value() : []));
+  /** Vrai dès qu'une première liste a été reçue. */
+  readonly loaded = computed(() => this.resource.hasValue());
   readonly loading = computed(() => this.resource.isLoading());
   readonly error = computed(() => this.resource.error() !== undefined);
   /** Message du serveur pour le dernier avis refusé, `null` sinon. */
