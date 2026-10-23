@@ -77,14 +77,58 @@ class IngredientMcpServerTest {
     }
 
     @Test
-    void toolsList_neContientQueListerIngredients() throws Exception {
+    void toolsList_neContientQueLesToolsDeLInventaire() throws Exception {
         initialiserSession();
 
         JsonNode result = rpc("tools/list", "{}").get("result");
 
         List<String> noms = new ArrayList<>();
         result.get("tools").forEach(tool -> noms.add(tool.get("name").asString()));
-        assertThat(noms).containsExactly("listerIngredients");
+        assertThat(noms).containsExactlyInAnyOrder("listerIngredients", "ajouterIngredients", "supprimerIngredients",
+                "modifierIngredients");
+    }
+
+    @Test
+    void toolsCall_ajouterModifierSupprimer_sontVisiblesDansListerIngredients() throws Exception {
+        initialiserSession();
+
+        JsonNode ajout = appeler("ajouterIngredients", """
+                {"aliments":[
+                  {"nom":"Pommes","categorie":"FRUITS","quantite":6,"unite":"PIECE","datePeremption":"2026-10-21"},
+                  {"nom":"Riz","categorie":"FECULENTS","quantite":500,"unite":"G"}]}""");
+        assertThat(estErreur(ajout)).isFalse();
+        assertThat(nomsListes()).containsExactly("Lait", "Pommes", "Courgettes", "Yaourts", "Riz");
+
+        JsonNode modification = appeler("modifierIngredients",
+                "{\"modifications\":[{\"id\":2,\"datePeremption\":\"2026-12-01\",\"quantite\":1}]}");
+        assertThat(estErreur(modification)).isFalse();
+        assertThat(nomsListes()).containsExactly("Lait", "Pommes", "Yaourts", "Courgettes", "Riz");
+
+        JsonNode suppression = appeler("supprimerIngredients", "{\"ids\":[3,1]}");
+        assertThat(estErreur(suppression)).isFalse();
+        assertThat(nomsListes()).containsExactly("Pommes", "Courgettes", "Riz");
+    }
+
+    @Test
+    void toolsCall_suppressionRefusee_renvoieLaRaisonSansRienSupprimer() throws Exception {
+        initialiserSession();
+
+        JsonNode result = appeler("supprimerIngredients", "{\"ids\":[1,99]}");
+
+        assertThat(result.get("content").get(0).get("text").asString()).contains("99");
+        assertThat(nomsListes()).containsExactly("Lait", "Courgettes", "Yaourts");
+    }
+
+    @Test
+    void toolsCall_toolsDuChat_neSontPasExposesAuMcp() throws Exception {
+        initialiserSession();
+
+        for (String nom : List.of("ajouterAliment", "modifierQuantite", "retirerAliments")) {
+            JsonNode reponse = rpc("tools/call", "{\"name\":\"" + nom + "\",\"arguments\":{}}");
+
+            boolean refuse = reponse.has("error") || reponse.path("result").path("isError").asBoolean(false);
+            assertThat(refuse).as(nom).isTrue();
+        }
     }
 
     @Test
@@ -137,7 +181,19 @@ class IngredientMcpServerTest {
     }
 
     private JsonNode appelerLister(String arguments) throws Exception {
-        return rpc("tools/call", "{\"name\":\"listerIngredients\",\"arguments\":" + arguments + "}").get("result");
+        return appeler("listerIngredients", arguments);
+    }
+
+    private JsonNode appeler(String tool, String arguments) throws Exception {
+        return rpc("tools/call", "{\"name\":\"" + tool + "\",\"arguments\":" + arguments + "}").get("result");
+    }
+
+    /** Noms de l'inventaire dans l'ordre renvoyé par listerIngredients (du plus urgent au moins urgent). */
+    private List<String> nomsListes() throws Exception {
+        JsonNode aliments = MAPPER.readTree(appelerLister("{}").get("content").get(0).get("text").asString());
+        List<String> noms = new ArrayList<>();
+        aliments.forEach(aliment -> noms.add(aliment.get("nom").asString()));
+        return noms;
     }
 
     private void initialiserSession() throws Exception {

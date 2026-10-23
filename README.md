@@ -4,7 +4,7 @@ Application web anti-gaspillage alimentaire : on suit les ingrédients de son fr
 
 **Contexte** : projet de formation réalisé à trois. Objectif : une application **minimaliste** qui intègre un **LLM** et un **serveur MCP**.
 
-> Statut : **appli complète en local** (`docker compose up -d --build`) : inventaire en base PostgreSQL modifiable (ajout en rafale, édition, retrait groupé), 3 recettes divergentes générées par le LLM, « J'ai cuisiné » qui décrémente le stock, historique des recettes cuisinées avec avis et commentaires (repris dans le prompt), profil Markdown, chat avec le chef (tools inventaire, ustensiles, préférences, recettes ; réponses en Markdown) et serveur MCP en lecture (tool `listerIngredients`).
+> Statut : **appli complète en local** (`docker compose up -d --build`) : inventaire en base PostgreSQL modifiable (ajout en rafale, édition, retrait groupé), 3 recettes divergentes générées par le LLM, « J'ai cuisiné » qui décrémente le stock, historique des recettes cuisinées avec avis et commentaires (repris dans le prompt), profil Markdown, chat avec le chef (tools inventaire, ustensiles, préférences, recettes ; réponses en Markdown) et serveur MCP (lecture et écriture de l'inventaire : `listerIngredients`, `ajouterIngredients`, `modifierIngredients`, `supprimerIngredients`).
 
 ## Sommaire
 - [Fonctionnalités](#fonctionnalités)
@@ -43,7 +43,7 @@ Un ingrédient est stocké en base avec :
 
   Une date **estimée** (pas de date saisie) est signalée comme telle dans l'interface.
 - **Modifiable** depuis l'interface **et** via le MCP (ajout, modification, suppression).
-- **Évolution** : liste **dynamique** en base (données d'amorçage au premier démarrage) : ajout en rafale après les courses, modification, suppression rapide de plusieurs aliments (annulable quelques secondes), et les mêmes opérations par le chat (« j'ai fini le lait »). Le serveur MCP reste en lecture seule pour l'instant.
+- **Évolution** : liste **dynamique** en base (données d'amorçage au premier démarrage) : ajout en rafale après les courses, modification, suppression rapide de plusieurs aliments (annulable quelques secondes), et les mêmes opérations par le chat (« j'ai fini le lait »). Le serveur MCP peut aussi ajouter, modifier et supprimer un ou plusieurs aliments à la fois.
 - **Plus tard** (gardé en réserve) : mise à jour par **scan des courses** (code-barres / ticket, ex. Open Food Facts).
 
 ### 2. Génération de recettes par LLM
@@ -78,16 +78,28 @@ Chaque utilisateur a un fichier Markdown de profil (préférences alimentaires),
 ### 5. Serveur MCP
 Un serveur [MCP (Model Context Protocol)](https://modelcontextprotocol.io) intégré au backend expose les fonctionnalités de l'application à un assistant compatible (Claude Desktop, Claude Code…). Il réutilise les mêmes services métier que l'API REST.
 
-**État actuel** : le serveur MCP est servi en Streamable HTTP sur `/mcp`, avec le profil Spring `mcp`. Il expose uniquement le tool `listerIngredients` (inventaire trié par urgence ; filtres facultatifs `categorie`, `joursMax`, `limite`). Il écoute sur `127.0.0.1` seulement, sans authentification, et s'utilise hors conteneur :
+**État actuel** : le serveur MCP est servi en Streamable HTTP sur `/mcp`, avec le profil Spring `mcp`. Il expose uniquement les tools de l'inventaire :
+
+| Tool | Rôle |
+|---|---|
+| `listerIngredients` | inventaire trié par urgence ; filtres facultatifs `categorie`, `joursMax`, `limite` |
+| `ajouterIngredients` | ajoute un ou plusieurs aliments (`nom`, `categorie`, `quantite`, `unite`, `datePeremption` facultative) |
+| `modifierIngredients` | modifie un ou plusieurs aliments par identifiant (seuls les champs renseignés changent ; `effacerDatePeremption` retire la date) |
+| `supprimerIngredients` | supprime un ou plusieurs aliments par identifiant |
+
+Les trois tools d'écriture sont atomiques : si un élément est refusé (identifiant inconnu, nom vide, quantité non positive…), rien n'est écrit et le message de refus est renvoyé. Ils sont réservés au MCP : le chat avec le chef garde ses propres tools (un aliment à la fois).
+
+Le serveur écoute sur `127.0.0.1` seulement, sans authentification, et s'utilise hors conteneur. L'inventaire est dans PostgreSQL : démarrer d'abord la base (`docker compose up -d db`).
 
 ```
+docker compose up -d db
 mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=mcp
 claude mcp add --transport http antigaspi http://127.0.0.1:8080/mcp
 ```
 
-Sans authentification, tout processus local peut lire l'inventaire. Le chemin `PROFILE_PATH` doit être relatif ou écrit avec des `/` (pas de chemin Windows absolu avec antislashs).
+Sans authentification, tout processus local peut lire et modifier l'inventaire. Pour l'ouvrir à un assistant hébergé dans le cloud (ChatGPT, par exemple), voir [docs/mcp-tunnel-cloudflare.md](docs/mcp-tunnel-cloudflare.md) : tunnel Cloudflare limité à `/mcp`, toujours sans authentification, donc à arrêter quand on ne l'utilise pas. Le chemin `PROFILE_PATH` doit être relatif ou écrit avec des `/` (pas de chemin Windows absolu avec antislashs).
 
-Les autres tools ci-dessous sont la cible. Leurs noms sont provisoires et seront alignés sur ceux des tools du chat (français, camelCase : `listerIngredients`, `genererRecette`…) ; `list_ingredients` correspond à `listerIngredients`, déjà exposé.
+Les autres tools ci-dessous sont la cible. Leurs noms sont provisoires et seront alignés sur ceux des tools du chat (français, camelCase : `listerIngredients`, `genererRecette`…) ; `list_ingredients` correspond à `listerIngredients`, et `add_ingredient` / `update_ingredient` / `remove_ingredient` à `ajouterIngredients` / `modifierIngredients` / `supprimerIngredients`, déjà exposés.
 
 Tools proposés :
 
@@ -95,7 +107,7 @@ Tools proposés :
 |---|---|
 | `list_ingredients` | lister l'inventaire, trié par urgence |
 | `get_expiring_ingredients` | ingrédients à consommer sous N jours |
-| `add_ingredient` / `update_ingredient` / `remove_ingredient` | gérer la liste |
+| `add_ingredient` / `update_ingredient` / `remove_ingredient` | gérer la liste (fait : `ajouterIngredients`, `modifierIngredients`, `supprimerIngredients`, un ou plusieurs aliments par appel) |
 | `consume_ingredients` | retirer / décrémenter les ingrédients utilisés par une recette |
 | `get_profile` | lire le profil (préférences) |
 | `update_preferences` | modifier les préférences du profil |
@@ -201,7 +213,7 @@ docker compose up -d db                                           # PostgreSQL s
 mvn verify                                                        # build + tests (sans appel LLM)
 mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=demo   # démo : 10 recettes générées dans le terminal + bilan des échecs
 mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=chat   # chat : le LLM appelle ses tools au besoin (« quitter » pour sortir)
-mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=mcp    # serveur MCP sur 127.0.0.1:8080/mcp (tool listerIngredients)
+mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=mcp    # serveur MCP sur 127.0.0.1:8080/mcp (tools d'inventaire : lecture et écriture)
 ```
 
 **Sans Java, avec Docker** (seul Docker Desktop ou Docker Engine + Compose est nécessaire) :
@@ -253,7 +265,7 @@ Toutes les variables sont décrites dans [.env.example](.env.example) : fourniss
 - [ ] Faut-il garder un historique ou des favoris de recettes ?
 - [ ] Quotas et coût du proxy Nova Lite ; partage de la clé à trois.
 - [ ] Usage local uniquement, ou hébergement ?
-- [ ] Sécurité du serveur MCP : accès local seulement (`127.0.0.1`, sans authentification) retenu pour l'instant ; jeton à étudier si hébergement.
+- [ ] Sécurité du serveur MCP : accès local seulement (`127.0.0.1`, sans authentification) retenu pour l'instant ; un tunnel Cloudflare limité à `/mcp` permet un essai avec ChatGPT ([docs/mcp-tunnel-cloudflare.md](docs/mcp-tunnel-cloudflare.md)), mais une authentification (jeton Bearer, Cloudflare Access ou OAuth) reste à étudier avant toute donnée réelle.
 - [ ] Écritures concurrentes du profil `.md` (interface + MCP en même temps).
 - [x] Stratégie de tests : TDD, tests unitaires avec LLM simulé ; vérification en réel avec la démo terminal.
 
