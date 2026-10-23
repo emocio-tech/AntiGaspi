@@ -1,6 +1,6 @@
 # Image du backend AntiGaspi : aucun Java ni Maven n'est nécessaire sur la machine hôte.
-#   docker compose build            (compile + lance les tests)
-#   docker compose run --rm backend (démo : recette générée dans le terminal)
+#   docker compose build           (compile + lance les tests)
+#   docker compose up -d --build   (lance base, backend et frontend ; voir docker-compose.yml)
 
 # --- Étape 1 : compilation et tests avec Maven + JDK 21 ---
 FROM maven:3.9-eclipse-temurin-21 AS build
@@ -24,16 +24,15 @@ RUN mvn -B -pl backend verify -DskipTests=${SKIP_TESTS} \
 FROM eclipse-temurin:21-jre
 WORKDIR /app
 
-RUN useradd --system --create-home antigaspi
+# UID de l'utilisateur de l'hôte (docker compose build --build-arg UID=$(id -u)) pour écrire profil.md dans ./data monté
+ARG UID=1000
+RUN useradd --system --non-unique --uid ${UID} --create-home antigaspi
 COPY --from=build /workspace/app.jar app.jar
 # Gabarit par défaut ; le dossier data/ de l'hôte est monté par-dessus par docker compose
 COPY data/profil.example.md data/
-# Ustensiles : fichier créé à la première modification dans /app/utensils (./data est monté en lecture seule),
-# à partir de la liste du jar. Les modifications faites par le chat durent le temps du conteneur.
 RUN chown -R antigaspi /app
 USER antigaspi
 
 ENV PROFILE_PATH=/app/data/profil.md
-ENV UTENSILS_PATH=/app/utensils/utensils.json
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]

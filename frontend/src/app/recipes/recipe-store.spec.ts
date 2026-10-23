@@ -81,7 +81,9 @@ describe('RecipeStore', () => {
 
     const reqs = requetes();
     expect(reqs.length).toBe(RECIPE_COUNT);
-    reqs.forEach((req) => expect(req.request.body).toEqual({ ingredientIds: [2], servings: 4, maxMinutes: 30 }));
+    reqs.forEach((req, index) =>
+      expect(req.request.body).toEqual({ ingredientIds: [2], servings: 4, maxMinutes: 30, variant: index }),
+    );
     expect(store.slots().map((s) => s.status)).toEqual(['loading', 'loading', 'loading']);
     expect(store.generating()).toBe(true);
     reqs.forEach((req) => req.flush(generated()));
@@ -153,5 +155,41 @@ describe('RecipeStore', () => {
     }).recipe;
 
     expect(store.urgentSavedCount(recette)).toBe(2);
+  });
+
+  it('ajoute une recette du chat consultable par son index, sans toucher aux 3 cartes', () => {
+    store.generate();
+    requetes().forEach((req, i) => req.flush(generated({ title: `Carte ${i}` })));
+    const duChat = generated({ title: 'Du chat' });
+
+    const index = store.addFromChat(duChat);
+
+    expect(store.result(index)).toEqual(duChat);
+    expect(store.slots().map((s) => (s.status === 'done' ? s.result.recipe.title : s.status))).toEqual([
+      'Carte 0',
+      'Carte 1',
+      'Carte 2',
+    ]);
+    expect([0, 1, 2].map((i) => store.result(i)?.recipe.title)).toEqual(['Carte 0', 'Carte 1', 'Carte 2']);
+  });
+
+  it('garde les recettes du chat après une nouvelle génération et donne des index distincts', () => {
+    const a = generated({ title: 'A' });
+    const b = generated({ title: 'B' });
+    const indexA = store.addFromChat(a);
+    const indexB = store.addFromChat(b);
+
+    store.generate();
+
+    expect(indexA).not.toBe(indexB);
+    expect(store.result(indexA)).toEqual(a);
+    expect(store.result(indexB)).toEqual(b);
+    requetes();
+  });
+
+  it('renvoie le même index pour la même recette ajoutée deux fois', () => {
+    const recette = generated();
+
+    expect(store.addFromChat(recette)).toBe(store.addFromChat(recette));
   });
 });

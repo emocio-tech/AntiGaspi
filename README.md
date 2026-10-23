@@ -4,7 +4,7 @@ Application web anti-gaspillage alimentaire : on suit les ingrédients de son fr
 
 **Contexte** : projet de formation réalisé à trois. Objectif : une application **minimaliste** qui intègre un **LLM** et un **serveur MCP**.
 
-> Statut : **socle backend** : inventaire statique, profil Markdown, génération de recette par LLM au niveau service, et démo de chat dont le LLM appelle des tools (inventaire, ustensiles, préférences, génération de recette contrôlée), et serveur MCP (Streamable HTTP, tool `listerIngredients`) (voir [docs/plans/2026-10-20-socle-inventaire-recette.md](docs/plans/2026-10-20-socle-inventaire-recette.md)).
+> Statut : **appli complète en local** (`docker compose up -d --build`) : inventaire en base PostgreSQL modifiable (ajout en rafale, édition, retrait groupé), 3 recettes divergentes générées par le LLM, « J'ai cuisiné » qui décrémente le stock, historique des recettes cuisinées avec avis et commentaires (repris dans le prompt), profil Markdown, chat avec le chef (tools inventaire, ustensiles, préférences, recettes ; réponses en Markdown) et serveur MCP en lecture (tool `listerIngredients`).
 
 ## Sommaire
 - [Fonctionnalités](#fonctionnalités)
@@ -43,7 +43,7 @@ Un ingrédient est stocké en base avec :
 
   Une date **estimée** (pas de date saisie) est signalée comme telle dans l'interface.
 - **Modifiable** depuis l'interface **et** via le MCP (ajout, modification, suppression).
-- **Évolution** : liste **statique** au départ (données d'amorçage), puis **dynamique** (CRUD complet).
+- **Évolution** : liste **dynamique** en base (données d'amorçage au premier démarrage) : ajout en rafale après les courses, modification, suppression rapide de plusieurs aliments (annulable quelques secondes), et les mêmes opérations par le chat (« j'ai fini le lait »). Le serveur MCP reste en lecture seule pour l'instant.
 - **Plus tard** (gardé en réserve) : mise à jour par **scan des courses** (code-barres / ticket, ex. Open Food Facts).
 
 ### 2. Génération de recettes par LLM
@@ -53,12 +53,12 @@ Un ingrédient est stocké en base avec :
 - Sortie au **format JSON standardisé**, stockable en base plus tard : titre, nombre de personnes, temps de préparation estimé, ustensiles utilisés, ingrédients (nom, poids ou quantité, unité, lien optionnel vers l'aliment du stock) et étapes. Voir [docs/format-recette.md](docs/format-recette.md).
 
 ### 3. « J'ai cuisiné cette recette » → mise à jour de la liste
-Après avoir réalisé une recette, un **écran de confirmation** liste les ingrédients utilisés avec les quantités **préremplies et modifiables** (si la recette a été adaptée). À la validation, les quantités sont décrémentées et les ingrédients épuisés sont supprimés.
+Après avoir réalisé une recette, un **écran de confirmation** liste les ingrédients utilisés avec les quantités **préremplies et modifiables** (si la recette a été adaptée). À la validation, les quantités sont décrémentées et les ingrédients épuisés sont supprimés. Les quantités sont préremplies dans l'unité de l'inventaire (g ↔ kg et ml ↔ l convertis ; sinon champ vide à compléter). On peut aussi donner un avis 👍/👎 et un commentaire facultatifs : la recette cuisinée est enregistrée en base avec son avis.
 
 ### 4. Profil utilisateur (`.md`) et feedback
-Chaque utilisateur a un fichier Markdown de profil (préférences alimentaires, historique des retours), lu par le LLM à chaque génération. Il est **modifiable par l'utilisateur** (interface et MCP).
+Chaque utilisateur a un fichier Markdown de profil (préférences alimentaires), lu par le LLM à chaque génération. Il est **modifiable par l'utilisateur** depuis l'écran Profil.
 
-> Les **ustensiles disponibles** ne sont **pas** dans le profil : ils sont stockés en base (table `utensil`, fichier JSON statique pour l'instant), modifiables par l'utilisateur, par exemple en cas de déménagement ou d'appareil cassé.
+> Les **ustensiles disponibles** ne sont **pas** dans le profil : ils sont stockés en base (table `utensil`), modifiables par l'utilisateur, par exemple en cas de déménagement ou d'appareil cassé.
 
 ```markdown
 # Profil
@@ -66,17 +66,14 @@ Chaque utilisateur a un fichier Markdown de profil (préférences alimentaires, 
 ## Préférences
 - N'aime pas les plats épicés
 - Végétarien le midi
-
-## Historique des retours
-- 2026-10-19 · Curry de légumes · 👎 · « trop épicé »
 ```
 
 **Boucle de feedback** :
-1. Après une recette, l'utilisateur donne un retour : appréciée ou non, bonne idée ou non, commentaire libre.
-2. Le retour brut est ajouté à la section **Historique des retours**.
-3. Le LLM **consolide** la section **Préférences** (synthèse courte, sans doublons ni contradictions).
+1. Sur l'écran « J'ai cuisiné », l'utilisateur peut donner un avis 👍/👎 et un commentaire libre, tous deux facultatifs. Ils sont enregistrés en base avec la recette cuisinée (table `cooked_recipe`).
+2. L'écran **Historique** liste les recettes cuisinées, plus récentes d'abord : on peut déplier la recette et modifier l'avis ou le commentaire après coup.
+3. À chaque génération, les **5 dernières** recettes cuisinées (`antigaspi.recipe.feedback-count`) sont ajoutées au prompt, par exemple `- 2026-10-19 · Curry de légumes · 👎 · « trop épicé »`. Le LLM évite de reproposer un plat récent ou ce qui a déplu ; les préférences du profil restent prioritaires.
 
-> Le feedback n'est **pas** stocké en base : le `.md` suffit.
+> Les préférences du profil ne sont pas modifiées automatiquement par les retours.
 
 ### 5. Serveur MCP
 Un serveur [MCP (Model Context Protocol)](https://modelcontextprotocol.io) intégré au backend expose les fonctionnalités de l'application à un assistant compatible (Claude Desktop, Claude Code…). Il réutilise les mêmes services métier que l'API REST.
@@ -88,7 +85,7 @@ mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=mcp
 claude mcp add --transport http antigaspi http://127.0.0.1:8080/mcp
 ```
 
-Sans authentification, tout processus local peut lire l'inventaire. Les chemins `PROFILE_PATH` et `UTENSILS_PATH` doivent être relatifs ou écrits avec des `/` (pas de chemin Windows absolu avec antislashs).
+Sans authentification, tout processus local peut lire l'inventaire. Le chemin `PROFILE_PATH` doit être relatif ou écrit avec des `/` (pas de chemin Windows absolu avec antislashs).
 
 Les autres tools ci-dessous sont la cible. Leurs noms sont provisoires et seront alignés sur ceux des tools du chat (français, camelCase : `listerIngredients`, `genererRecette`…) ; `list_ingredients` correspond à `listerIngredients`, déjà exposé.
 
@@ -110,7 +107,7 @@ Deux usages possibles : Claude appelle `generate_recipe` (génération par le LL
 
 ### 6. Interface utilisateur
 - **Web app Angular**, minimaliste et **responsive (mobile-first)** : elle doit fonctionner correctement sur ordinateur et sur téléphone.
-- Trois écrans : **Inventaire**, **Recettes**, **Profil**.
+- Quatre écrans : **Inventaire**, **Recettes** (avec le chat et l'écran « J'ai cuisiné »), **Historique**, **Profil**.
 - Design à valider avec le maquettage : voir [docs/maquettes/](docs/maquettes/).
 
 ## Stack technique
@@ -134,8 +131,8 @@ flowchart LR
     MCPC["Client MCP<br/>(Claude…)"] -->|MCP| MCPS["Serveur MCP"]
     API --> SVC["Services métier<br/>inventaire · ustensiles · recettes · profil"]
     MCPS --> SVC
-    SVC --> DB[("PostgreSQL<br/>ingrédients · ustensiles")]
-    SVC --> MD["data/profil.md<br/>préférences · retours"]
+    SVC --> DB[("PostgreSQL<br/>ingrédients · ustensiles · recettes cuisinées")]
+    SVC --> MD["data/profil.md<br/>préférences"]
     SVC --> LLM["LLM via Spring AI<br/>Nova Lite (proxy OpenAI) par défaut"]
 ```
 
@@ -162,9 +159,9 @@ Table `utensil` (ustensiles disponibles) :
 | `id` | `bigint` | PK |
 | `name` | `varchar` | non nul, unique |
 
-Les recettes générées pourront être stockées à partir de leur [format JSON standardisé](docs/format-recette.md), qui propose aussi un schéma de tables.
+Les recettes cuisinées sont stockées dans la table `cooked_recipe` (titre, recette au [format JSON standardisé](docs/format-recette.md), date, avis 👍/👎 et commentaire facultatifs). Les recettes seulement générées ne sont pas conservées.
 
-> Pour l'instant, ingrédients et ustensiles sont des fichiers JSON (`backend/src/main/resources/data/`), derrière les interfaces `IngredientRepository` et `UtensilRepository`. Les ustensiles modifiés par le chat sont enregistrés dans `data/utensils.json` (gitignoré, variable `UTENSILS_PATH`), créé à la première modification.
+> Le schéma est créé par Flyway (`backend/src/main/resources/db/migration/`). Au premier démarrage, une migration Java (`SeedDataMigration`) amorce la base à partir de `backend/src/main/resources/data/*.json`, en jours relatifs à la date du jour ; elle ne s'exécute qu'une fois (vider l'inventaire ne le réamorce pas, `docker compose down -v` si).
 
 ### Catégories proposées
 Fruits, légumes, produits laitiers, viandes & poissons, œufs, féculents, épicerie sèche, conserves, surgelés, boissons, condiments.
@@ -182,7 +179,7 @@ AntiGaspi/
 ├── docs/
 │   └── maquettes/       # maquettes / wireframes
 ├── Dockerfile           # image du backend (build Maven + JRE 21), aucun Java requis sur l'hôte
-├── docker-compose.yml   # service backend (PostgreSQL à ajouter)
+├── docker-compose.yml   # services db (PostgreSQL), backend et frontend (nginx)
 ├── .env.example         # gabarit des variables d'environnement
 └── .claude/             # config Claude Code partagée (agents, skills, hooks, permissions)
 ```
@@ -197,9 +194,10 @@ cp .env.example .env   # puis renseigner LLM_BASE_URL, LLM_API_KEY (une seule li
 cp data/profil.example.md data/profil.md   # puis adapter les préférences
 ```
 
-**Avec Java 21 et Maven** :
+**Avec Java 21 et Maven** (base PostgreSQL lancée par Docker, les tests n'en ont pas besoin) :
 
 ```bash
+docker compose up -d db                                           # PostgreSQL sur 127.0.0.1:5432 (volume pgdata)
 mvn verify                                                        # build + tests (sans appel LLM)
 mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=demo   # démo : 10 recettes générées dans le terminal + bilan des échecs
 mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=chat   # chat : le LLM appelle ses tools au besoin (« quitter » pour sortir)
@@ -209,14 +207,15 @@ mvn -pl backend spring-boot:run -Dspring-boot.run.profiles=mcp    # serveur MCP 
 **Sans Java, avec Docker** (seul Docker Desktop ou Docker Engine + Compose est nécessaire) :
 
 ```bash
-docker compose build              # compile et lance les tests dans l'image (première fois : quelques minutes)
-docker compose run --rm backend   # démo : aliments urgents + 10 recettes générées + bilan, puis arrêt
+docker compose up -d --build      # base + backend + front : appli sur http://localhost:8081 (premier build : quelques minutes, tests compris)
+SPRING_PROFILES_ACTIVE=demo docker compose run --rm backend   # démo : aliments urgents + 10 recettes générées + bilan, puis arrêt
 SPRING_PROFILES_ACTIVE=chat docker compose run --rm backend   # chat avec le LLM, qui appelle ses tools au besoin
+docker compose down               # arrêt (les données restent dans le volume pgdata ; -v pour repartir de zéro)
 ```
 
-- Le `.env` est passé au conteneur au lancement (`env_file`), il n'est **jamais** copié dans l'image (`.dockerignore`).
-- Le dossier `data/` est monté en lecture seule : `data/profil.md` est pris en compte sans reconstruire l'image.
-- Après une modification du code, relancer `docker compose build`. Pour aller plus vite : `docker compose build --build-arg SKIP_TESTS=true`.
+- Le `.env` est passé au conteneur au lancement (`env_file`, facultatif), il n'est **jamais** copié dans l'image (`.dockerignore`).
+- Le dossier `data/` est monté en écriture : `data/profil.md` est lu et modifié par l'appli sans reconstruire l'image.
+- Après une modification du code, relancer `docker compose up -d --build`. Pour aller plus vite : `docker compose build --build-arg SKIP_TESTS=true`.
 
 Toutes les variables sont décrites dans [.env.example](.env.example) : fournisseur et modèle LLM, clé API, base de données, chemin du profil.
 
@@ -232,18 +231,18 @@ Toutes les variables sont décrites dans [.env.example](.env.example) : fourniss
 |---|---|---|
 | Stack | Java (Spring Boot, Maven) + Angular, web app responsive | 2026-10-19 |
 | Base de données | PostgreSQL pour les ingrédients et les ustensiles (les recettes plus tard) | 2026-10-20 |
-| Feedback | pas de table : enrichit le profil `.md`, consolidé par le LLM | 2026-10-19 |
+| Feedback | stocké en base avec la recette cuisinée (avis 👍/👎 et commentaire facultatifs), plus dans le profil `.md` | 2026-10-22 |
 | Utilisateurs | mono-utilisateur pour le MVP, pas d'authentification | 2026-10-19 |
 | LLM | Nova Lite via le proxy compatible OpenAI de la formation (accès direct à Bedrock abandonné), fournisseur interchangeable par configuration | 2026-10-20 |
 | Ingrédient | nom, catégorie, quantité + unité, péremption optionnelle (estimée sinon), date d'ajout | 2026-10-19 |
 | Urgence | indicateurs colorés plutôt que dates brutes | 2026-10-19 |
 | Consommation | écran de confirmation avec quantités modifiables | 2026-10-19 |
-| Ustensiles | stockés en base (JSON statique en attendant), plus dans le profil `.md` | 2026-10-20 |
+| Ustensiles | stockés en base, plus dans le profil `.md` | 2026-10-20 |
 | Format de recette | JSON standardisé à clés anglaises, quantité = nombre + unité, `ingredientId` optionnel ([docs/format-recette.md](docs/format-recette.md)) | 2026-10-20 |
 | Secrets | clé API dans `.env`, lecture interdite à Claude Code | 2026-10-19 |
 | Méthode | TDD obligatoire : tests écrits avant le code (voir [CLAUDE.md](CLAUDE.md)) | 2026-10-20 |
 | Versions | Spring Boot 4.1 / Spring AI 2.0 (Spring Boot 3 n'est plus proposé par Spring Initializr) | 2026-10-20 |
-| Données de test | inventaire statique JSON en jours relatifs, en attendant PostgreSQL | 2026-10-20 |
+| Données d'amorçage | JSON en jours relatifs, insérés une seule fois par une migration Flyway Java | 2026-10-22 |
 
 ## Questions ouvertes
 

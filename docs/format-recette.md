@@ -1,6 +1,6 @@
 # Format standardisé d'une recette (JSON)
 
-Le LLM renvoie toujours une recette dans ce format. Il correspond au record Java [`Recipe`](../backend/src/main/java/fr/antigaspi/recipe/model/Recipe.java). Il est pensé pour être **stocké en base** plus tard, sans transformation.
+Le LLM renvoie toujours une recette dans ce format. Il correspond au record Java [`Recipe`](../backend/src/main/java/fr/antigaspi/recipe/model/Recipe.java). Il est **stocké en base** tel quel quand l'utilisateur indique avoir cuisiné la recette (colonne `content` de la table `cooked_recipe`).
 
 ## Champs
 
@@ -57,7 +57,11 @@ Chaque élément de `ingredients` :
 
 Pour modifier le format, il faut changer **ensemble** le record, la section « Format » du prompt système, ce document et le test de référence.
 
-## Stockage en base (proposition, plus tard)
+## Stockage en base
+
+Les recettes **cuisinées** sont stockées dans la table `cooked_recipe` : `id`, `title`, `content` (ce JSON, au plus 20 000 caractères), `cooked_at`, `rating` (`UP`, `DOWN` ou vide) et `comment` (au plus 1 000 caractères). Une colonne texte plutôt que `jsonb` garde le même schéma sous PostgreSQL et sous H2 (tests). Les recettes seulement générées ne sont pas conservées.
+
+Schéma normalisé possible si l'on doit un jour interroger le contenu des recettes :
 
 | Table | Colonnes |
 |---|---|
@@ -66,4 +70,3 @@ Pour modifier le format, il faut changer **ensemble** le record, la section « F
 | `recipe_step` | `recipe_id`, `position`, `text` |
 | `recipe_utensil` | `recipe_id`, `utensil_id` |
 
-Variante plus simple : une table `recipe` avec une colonne `content` en `jsonb` qui contient ce JSON tel quel.

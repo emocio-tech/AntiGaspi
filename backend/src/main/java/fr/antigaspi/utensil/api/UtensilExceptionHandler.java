@@ -12,7 +12,8 @@ import fr.antigaspi.utensil.service.UtensilNotFoundException;
 
 /**
  * Traduit en 404 un ustensile introuvable ; plus précis que le 400 générique des valeurs refusées, il doit donc passer
- * avant le gestionnaire commun, qui accepterait aussi cette exception (sous-classe de {@code IllegalArgumentException}).
+ * avant le gestionnaire commun, qui accepterait aussi cette exception (sous-classe de
+ * {@code IllegalArgumentException}).
  */
 @Order(Ordered.HIGHEST_PRECEDENCE)
 @RestControllerAdvice(assignableTypes = UtensilController.class)

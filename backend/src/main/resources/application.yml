@@ -6,6 +6,17 @@ spring:
     import:
       - optional:file:.env[.properties]
       - optional:file:../.env[.properties]
+  datasource:
+    # Base PostgreSQL (docker compose up -d db en local) ; surchargeable par variables d'environnement
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/antigaspi}
+    username: ${DB_USER:antigaspi}
+    password: ${DB_PASSWORD:antigaspi}
+  jpa:
+    # Pas de session JPA ouverte pendant le rendu des réponses
+    open-in-view: false
+    hibernate:
+      # Le schéma est géré par Flyway (db/migration) ; Hibernate se contente de le vérifier
+      ddl-auto: validate
   ai:
     mcp:
       server:
@@ -26,11 +37,9 @@ antigaspi:
   profile:
     # Chemin relatif au dossier de lancement (backend/ avec Maven) ; le gabarit profil.example.md du même dossier sert de repli
     path: ${PROFILE_PATH:../data/profil.md}
-  utensils:
-    # Fichier JSON des ustensiles, réécrit à chaque ajout ou suppression (gitignoré) ; chemin relatif au dossier de lancement (backend/ avec Maven).
-    # S'il n'existe pas, la liste part de classpath:data/utensils.json et le fichier est créé à la première modification.
-    path: ${UTENSILS_PATH:../data/utensils.json}
   recipe:
     # Nombre d'aliments les plus urgents envoyés au LLM quand aucun n'est choisi
     max-ingredients: 8
     default-servings: 2
+    # Nombre de recettes cuisinées récemment (avec avis) rappelées au LLM
+    feedback-count: 5

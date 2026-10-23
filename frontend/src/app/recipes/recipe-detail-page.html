@@ -50,6 +50,10 @@
       </ol>
     </section>
   </div>
+
+  <div class="cook">
+    <a class="cook-link" data-testid="cook-link" [routerLink]="['/recettes', id(), 'cuisine']">J’ai cuisiné cette recette</a>
+  </div>
 } @else {
   <p class="missing" data-testid="missing">Cette recette n'est plus disponible : les recettes proposées ne sont conservées que le temps de la session.</p>
 }

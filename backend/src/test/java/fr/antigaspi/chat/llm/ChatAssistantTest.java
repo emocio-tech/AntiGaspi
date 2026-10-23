@@ -35,13 +35,21 @@ import fr.antigaspi.chat.model.ChatEntry;
 import fr.antigaspi.chat.model.ChatReply;
 import fr.antigaspi.chat.model.ChatRole;
 import fr.antigaspi.ingredient.model.Category;
+import fr.antigaspi.ingredient.repository.InMemoryIngredientRepository;
 import fr.antigaspi.ingredient.model.Ingredient;
 import fr.antigaspi.ingredient.model.Unit;
 import fr.antigaspi.ingredient.service.IngredientService;
+import fr.antigaspi.ingredient.tool.IngredientEditTools;
 import fr.antigaspi.ingredient.tool.IngredientTools;
 import fr.antigaspi.profile.model.UserProfile;
 import fr.antigaspi.profile.service.ProfileService;
 import fr.antigaspi.profile.tool.ProfileTools;
+import fr.antigaspi.recipe.model.GeneratedRecipe;
+import fr.antigaspi.recipe.model.Recipe;
+import fr.antigaspi.recipe.model.RecipeIngredient;
+import fr.antigaspi.recipe.tool.RecipeGeneratedEvent;
+import fr.antigaspi.recipe.repository.InMemoryCookedRecipeRepository;
+import fr.antigaspi.recipe.service.CookingService;
 import fr.antigaspi.recipe.service.RecipeChecker;
 import fr.antigaspi.recipe.service.RecipeProperties;
 import fr.antigaspi.recipe.service.RecipeService;
@@ -55,13 +63,27 @@ class ChatAssistantTest {
 
     private static final Instant NOW = Instant.parse("2026-10-20T10:00:00Z");
 
-    private static final IngredientService INGREDIENTS = new IngredientService(() -> List.of(new Ingredient(3L,
-            "Courgettes", Category.LEGUMES, new BigDecimal("2.5"), Unit.KG, LocalDate.of(2026, 10, 22), NOW)),
+    private static final IngredientService INGREDIENTS = new IngredientService(
+            new InMemoryIngredientRepository(new Ingredient(3L, "Courgettes", Category.LEGUMES, new BigDecimal("2.5"),
+                    Unit.KG, LocalDate.of(2026, 10, 22), NOW)),
             Clock.fixed(NOW, ZoneOffset.UTC));
 
-    private static final RecipeTools RECIPE_TOOLS = new RecipeTools(
-            new RecipeService(INGREDIENTS, new UtensilService(new InMemoryUtensilRepository()),
-                    mock(ProfileService.class), context -> null, new RecipeChecker(), new RecipeProperties(8, 2)));
+    private static final Recipe RECIPE = new Recipe("Courgettes sautées", 2, 15, List.of("Poêle"),
+            List.of(new RecipeIngredient(3L, "Courgettes", new BigDecimal("2"), "pièce")),
+            List.of("Faire sauter les courgettes."));
+
+    /** Comme Spring, qui transmet les événements publiés aux écouteurs : ici l'assistant testé. */
+    private ChatAssistant listener;
+
+    private final RecipeTools recipeTools = new RecipeTools(new RecipeService(INGREDIENTS,
+            new UtensilService(new InMemoryUtensilRepository()), mock(ProfileService.class),
+            new CookingService(INGREDIENTS, new InMemoryCookedRecipeRepository(), Clock.fixed(NOW, ZoneOffset.UTC)),
+            context -> RECIPE, new RecipeChecker(), new RecipeProperties(8, 2, 5)), event -> {
+                this.events.add(event);
+                if (event instanceof RecipeGeneratedEvent generated) {
+                    listener.onRecipeGenerated(generated);
+                }
+            });
 
     private static final UtensilTools UTENSIL_TOOLS = new UtensilTools(
             new UtensilService(new InMemoryUtensilRepository(new Utensil(1L, "Four"))));
@@ -97,9 +119,11 @@ class ChatAssistantTest {
                 return ToolCallingChatOptions.builder().build();
             }
         };
-        return new ChatAssistant(ChatClient.builder(chatModel),
-                List.of(new IngredientTools(INGREDIENTS), RECIPE_TOOLS, UTENSIL_TOOLS, PROFILE_TOOLS), events::add,
-                new ByteArrayResource("PROMPT SYSTEME CHAT".getBytes(StandardCharsets.UTF_8)));
+        listener = new ChatAssistant(ChatClient.builder(chatModel),
+                List.of(new IngredientTools(INGREDIENTS), new IngredientEditTools(INGREDIENTS), recipeTools,
+                        UTENSIL_TOOLS, PROFILE_TOOLS),
+                events::add, new ByteArrayResource("PROMPT SYSTEME CHAT".getBytes(StandardCharsets.UTF_8)));
+        return listener;
     }
 
     private static AssistantMessage toolCall(String arguments) {
@@ -171,9 +195,9 @@ class ChatAssistantTest {
         assertThat(texts(prompt, MessageType.USER)).containsExactly("Bonjour");
         assertThat(prompt.getOptions()).isInstanceOfSatisfying(ToolCallingChatOptions.class,
                 options -> assertThat(options.getToolCallbacks())
-                        .extracting(callback -> callback.getToolDefinition().name())
-                        .containsExactlyInAnyOrder("listerIngredients", "genererRecette", "listUtensils", "addUtensil",
-                                "removeUtensil", "consulterPreferences"));
+                        .extracting(callback -> callback.getToolDefinition().name()).containsExactlyInAnyOrder(
+                                "listerIngredients", "genererRecette", "listUtensils", "addUtensil", "removeUtensil",
+                                "consulterPreferences", "ajouterAliment", "modifierQuantite", "retirerAliments"));
     }
 
     @Test
@@ -256,8 +280,7 @@ class ChatAssistantTest {
         assistant.reply("Qu'est-ce qui périme bientôt ?");
         assistant.reply("Et c'est quelle catégorie ?");
 
-        assertThat(assistant.history()).containsExactly(
-                new ChatEntry(ChatRole.USER, "Qu'est-ce qui périme bientôt ?"),
+        assertThat(assistant.history()).containsExactly(new ChatEntry(ChatRole.USER, "Qu'est-ce qui périme bientôt ?"),
                 new ChatEntry(ChatRole.ASSISTANT, "Des courgettes."),
                 new ChatEntry(ChatRole.USER, "Et c'est quelle catégorie ?"),
                 new ChatEntry(ChatRole.ASSISTANT, "Ce sont des légumes."));
@@ -271,5 +294,26 @@ class ChatAssistantTest {
         assistant.reset();
 
         assertThat(assistant.history()).isEmpty();
+    }
+
+    @Test
+    void replyWithTools_recetteGeneree_renvoyeeUniquementPourCeMessage() {
+        AssistantMessage generate = AssistantMessage.builder().content("")
+                .toolCalls(List.of(new ToolCall("appel-2", "function", "genererRecette", "{}"))).build();
+        ChatAssistant assistant = assistantAnswering(generate, new AssistantMessage("Voici une recette."),
+                new AssistantMessage("Bonjour !"));
+
+        ChatReply first = assistant.replyWithTools("Une recette ?");
+        ChatReply second = assistant.replyWithTools("Bonjour");
+
+        assertThat(first.recipes()).containsExactly(new GeneratedRecipe(RECIPE, List.of()));
+        assertThat(second.recipes()).isEmpty();
+    }
+
+    @Test
+    void replyWithTools_sansTool_aucuneRecette() {
+        ChatAssistant assistant = assistantAnswering(new AssistantMessage("Bonjour !"));
+
+        assertThat(assistant.replyWithTools("Bonjour").recipes()).isEmpty();
     }
 }

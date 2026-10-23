@@ -43,6 +43,15 @@ describe('App', () => {
     http.expectOne('/api/ingredients').flush([]);
   });
 
+  it('propose la navigation vers l’historique', () => {
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+
+    const lien = (fixture.nativeElement as HTMLElement).querySelector('a[href="/historique"]');
+    expect(lien?.textContent).toContain('Historique');
+    http.expectOne('/api/ingredients').flush([]);
+  });
+
   it('affiche sur l’inventaire le nombre d’aliments à consommer en priorité', async () => {
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();

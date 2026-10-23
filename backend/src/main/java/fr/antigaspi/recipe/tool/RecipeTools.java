@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
 import fr.antigaspi.common.ChatTools;
@@ -26,8 +27,11 @@ public class RecipeTools implements ChatTools {
 
     private final RecipeService recipeService;
 
-    public RecipeTools(RecipeService recipeService) {
+    private final ApplicationEventPublisher eventPublisher;
+
+    public RecipeTools(RecipeService recipeService, ApplicationEventPublisher eventPublisher) {
         this.recipeService = recipeService;
+        this.eventPublisher = eventPublisher;
     }
 
     @Tool(name = "genererRecette", description = """
@@ -44,6 +48,7 @@ public class RecipeTools implements ChatTools {
         try {
             GeneratedRecipe generated = recipeService
                     .generate(new RecipeRequest(alimentIds, personnes, tempsMax, demande));
+            eventPublisher.publishEvent(new RecipeGeneratedEvent(generated));
             return new Proposition(generated.recipe(), generated.issues(), null);
         } catch (IllegalArgumentException | RecipeGenerationException e) {
             return new Proposition(null, List.of(), e.getMessage());

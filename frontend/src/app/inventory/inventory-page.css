@@ -154,6 +154,11 @@
   background: var(--surface-card);
 }
 
+.item:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
 .item:hover {
   box-shadow: var(--shadow-card);
 }
@@ -209,4 +214,49 @@
   margin: 0;
   font-size: var(--text-xs);
   color: var(--text-muted);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.alert {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--tint-rose);
+  color: #c2373c;
+  font-size: 14px;
+  font-weight: var(--weight-medium);
+}
+
+.undo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+  font-size: 14px;
+  color: var(--text-strong);
+}
+
+.undo .toggle {
+  margin-left: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.item.editable {
+  cursor: pointer;
 }

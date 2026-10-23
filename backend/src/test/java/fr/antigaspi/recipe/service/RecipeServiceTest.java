@@ -7,7 +7,9 @@ import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -15,6 +17,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import fr.antigaspi.ingredient.model.Category;
+import fr.antigaspi.ingredient.repository.InMemoryIngredientRepository;
 import fr.antigaspi.ingredient.model.Ingredient;
 import fr.antigaspi.ingredient.model.IngredientView;
 import fr.antigaspi.ingredient.model.Unit;
@@ -23,13 +26,17 @@ import fr.antigaspi.profile.model.UserProfile;
 import fr.antigaspi.profile.service.ProfileService;
 import fr.antigaspi.recipe.RecipeFixtures;
 import fr.antigaspi.recipe.llm.RecipeGenerator;
+import fr.antigaspi.recipe.model.CookedRecipe;
+import fr.antigaspi.recipe.model.DishType;
 import fr.antigaspi.recipe.model.GeneratedRecipe;
 import fr.antigaspi.recipe.model.Recipe;
+import fr.antigaspi.recipe.model.Rating;
 import fr.antigaspi.recipe.model.RecipeContext;
 import fr.antigaspi.recipe.model.RecipeIngredient;
 import fr.antigaspi.recipe.model.RecipeIssue;
 import fr.antigaspi.recipe.model.RecipeIssueType;
 import fr.antigaspi.recipe.model.RecipeRequest;
+import fr.antigaspi.recipe.repository.InMemoryCookedRecipeRepository;
 import fr.antigaspi.utensil.model.Utensil;
 import fr.antigaspi.utensil.repository.InMemoryUtensilRepository;
 import fr.antigaspi.utensil.service.UtensilService;
@@ -55,16 +62,35 @@ class RecipeServiceTest {
     }
 
     private static Ingredient ingredient(long id, String name, int expiresInDays) {
-        return new Ingredient(id, name, Category.LEGUMES, BigDecimal.ONE, Unit.PIECE,
+        return ingredient(id, name, Category.LEGUMES, expiresInDays);
+    }
+
+    private static Ingredient ingredient(long id, String name, Category category, int expiresInDays) {
+        return new Ingredient(id, name, category, BigDecimal.ONE, Unit.PIECE,
                 RecipeFixtures.TODAY.plusDays(expiresInDays), RecipeFixtures.NOW);
     }
 
+    private static RecipeRequest variante(List<Long> ids, int variant) {
+        return new RecipeRequest(ids, null, null, null, variant);
+    }
+
+    private String imposedMainName() {
+        IngredientView main = receivedContext.get().imposedMain();
+        return main == null ? null : main.ingredient().name();
+    }
+
     private RecipeService service(Ingredient... ingredients) {
-        IngredientService ingredientService = new IngredientService(() -> List.of(ingredients), CLOCK);
+        return service(new InMemoryCookedRecipeRepository(), 3, ingredients);
+    }
+
+    private RecipeService service(InMemoryCookedRecipeRepository cooked, int feedbackCount, Ingredient... ingredients) {
+        IngredientService ingredientService = new IngredientService(new InMemoryIngredientRepository(ingredients),
+                CLOCK);
+        CookingService cookingService = new CookingService(ingredientService, cooked, CLOCK);
         UtensilService utensilService = new UtensilService(
                 new InMemoryUtensilRepository(UTENSILS.toArray(Utensil[]::new)));
-        return new RecipeService(ingredientService, utensilService, profileService, generator, new RecipeChecker(),
-                new RecipeProperties(2, 3));
+        return new RecipeService(ingredientService, utensilService, profileService, cookingService, generator,
+                new RecipeChecker(), new RecipeProperties(2, 3, feedbackCount));
     }
 
     private List<String> priorityNames() {
@@ -163,6 +189,80 @@ class RecipeServiceTest {
     }
 
     @Test
+    void variante_imposeLeKiemeAlimentPrioritaireEtLeKiemeTypeDePlat() {
+        RecipeService service = service(ingredient(1, "Poulet", Category.VIANDES_POISSONS, 3),
+                ingredient(2, "Tomates", 1), ingredient(3, "Courgettes", 2));
+        List<String> mains = new ArrayList<>();
+        List<DishType> dishTypes = new ArrayList<>();
+
+        for (int variant = 0; variant < 3; variant++) {
+            service.generate(variante(List.of(1L, 2L, 3L), variant));
+            mains.add(imposedMainName());
+            dishTypes.add(receivedContext.get().imposedDishType());
+        }
+
+        // Ordre d'urgence des aliments prioritaires : Tomates, Courgettes, Poulet
+        assertThat(mains).containsExactly("Tomates", "Courgettes", "Poulet");
+        assertThat(dishTypes).containsExactly(DishType.values());
+    }
+
+    @Test
+    void variante_condimentsBoissonsEtEpicerieJamaisAlimentPrincipal() {
+        RecipeService service = service(ingredient(1, "Moutarde", Category.CONDIMENTS, 0),
+                ingredient(2, "Jus d'orange", Category.BOISSONS, 0),
+                ingredient(3, "Farine", Category.EPICERIE_SECHE, 0), ingredient(4, "Courgettes", 2));
+
+        service.generate(variante(List.of(1L, 2L, 3L, 4L), 0));
+        assertThat(imposedMainName()).isEqualTo("Courgettes");
+
+        service.generate(variante(List.of(1L, 2L, 3L, 4L), 2));
+        assertThat(imposedMainName()).isEqualTo("Courgettes");
+    }
+
+    @Test
+    void variante_unSeulAlimentPrioritaire_memeAlimentMaisTypesDePlatDifferents() {
+        RecipeService service = service(ingredient(1, "Tomates", 1));
+        List<DishType> dishTypes = new ArrayList<>();
+
+        for (int variant = 0; variant < 3; variant++) {
+            service.generate(variante(List.of(1L), variant));
+            assertThat(imposedMainName()).isEqualTo("Tomates");
+            dishTypes.add(receivedContext.get().imposedDishType());
+        }
+
+        assertThat(dishTypes).doesNotHaveDuplicates().hasSize(3);
+    }
+
+    @Test
+    void variante_aucunCandidatPrincipal_seulLeTypeDePlatEstImpose() {
+        RecipeService service = service(ingredient(1, "Moutarde", Category.CONDIMENTS, 0));
+
+        service.generate(variante(List.of(1L), 1));
+
+        assertThat(receivedContext.get().imposedMain()).isNull();
+        assertThat(receivedContext.get().imposedDishType()).isEqualTo(DishType.values()[1]);
+    }
+
+    @Test
+    void sansVariante_aucuneContrainteDeDivergence() {
+        service(ingredient(1, "Tomates", 1)).generate(RecipeRequest.mostUrgent());
+
+        assertThat(receivedContext.get().imposedMain()).isNull();
+        assertThat(receivedContext.get().imposedDishType()).isNull();
+    }
+
+    @Test
+    void varianteHorsBornes_refuseeSansAppelerLeLlm() {
+        RecipeService service = service(ingredient(1, "Tomates", 1));
+
+        assertThatThrownBy(() -> service.generate(variante(List.of(), -1))).isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("variante");
+        assertThatThrownBy(() -> service.generate(variante(List.of(), 3))).isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("variante");
+        assertThat(receivedContext.get()).isNull();
+    }
+
+    @Test
     void recetteDuLlm_controleeContreLesUstensilesDisponibles() {
         llmAnswer.set(new Recipe("Soupe", 2, 30, List.of("Four", "Mixeur"), List.of(), List.of("Mixer")));
 
@@ -170,5 +270,29 @@ class RecipeServiceTest {
 
         assertThat(generated.issues()).extracting(RecipeIssue::type)
                 .containsExactly(RecipeIssueType.USTENSILE_INDISPONIBLE);
+    }
+
+    @Test
+    void generation_fournitLesRecettesCuisineesRecentesAuGenerateur() {
+        InMemoryCookedRecipeRepository cooked = new InMemoryCookedRecipeRepository(
+                cookedRecipe(1, "Soupe", "2026-10-17T12:00:00Z"), cookedRecipe(3, "Curry", "2026-10-19T12:00:00Z"),
+                cookedRecipe(2, "Gratin", "2026-10-18T12:00:00Z"));
+
+        service(cooked, 2, ingredient(1, "Courgettes", 1)).generate(RecipeRequest.mostUrgent());
+
+        assertThat(receivedContext.get().recentlyCooked()).extracting(item -> item.recipe().title())
+                .containsExactly("Curry", "Gratin");
+    }
+
+    @Test
+    void generation_sansRecetteCuisinee_contexteSansRecetteRecente() {
+        service(ingredient(1, "Courgettes", 1)).generate(RecipeRequest.mostUrgent());
+
+        assertThat(receivedContext.get().recentlyCooked()).isEmpty();
+    }
+
+    private static CookedRecipe cookedRecipe(long id, String title, String cookedAt) {
+        return new CookedRecipe(id, new Recipe(title, 2, 30, List.of(), List.of(), List.of()), Instant.parse(cookedAt),
+                Rating.UP, null);
     }
 }

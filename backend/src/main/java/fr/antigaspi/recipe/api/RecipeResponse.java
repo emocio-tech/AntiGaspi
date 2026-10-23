@@ -2,6 +2,7 @@ package fr.antigaspi.recipe.api;
 
 import java.util.List;
 
+import fr.antigaspi.recipe.model.GeneratedRecipe;
 import fr.antigaspi.recipe.model.Recipe;
 
 /**
@@ -13,4 +14,10 @@ import fr.antigaspi.recipe.model.Recipe;
  *            anomalies détectées, vide si la recette est conforme
  */
 public record RecipeResponse(Recipe recipe, List<IssueResponse> issues) {
+
+    /** Recette générée au format de l'API. */
+    public static RecipeResponse from(GeneratedRecipe generated) {
+        return new RecipeResponse(generated.recipe(), generated.issues().stream()
+                .map(issue -> new IssueResponse(issue.type(), issue.type().label(), issue.message())).toList());
+    }
 }

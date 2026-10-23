@@ -1,0 +1,7 @@
+# Configuration ajoutée pour tous les tests (chargée en plus de application.yml) : H2 en mémoire en mode PostgreSQL
+# à la place de la base PostgreSQL, avec les mêmes migrations Flyway. Une base neuve par contexte Spring (random.uuid).
+spring:
+  datasource:
+    url: jdbc:h2:mem:antigaspi-${random.uuid};MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1
+    username: sa
+    password: ""

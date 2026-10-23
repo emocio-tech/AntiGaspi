@@ -14,6 +14,7 @@ import org.springframework.ai.support.ToolCallbacks;
 import org.springframework.ai.tool.ToolCallback;
 
 import fr.antigaspi.ingredient.model.Category;
+import fr.antigaspi.ingredient.repository.InMemoryIngredientRepository;
 import fr.antigaspi.ingredient.model.Ingredient;
 import fr.antigaspi.ingredient.model.Unit;
 import fr.antigaspi.ingredient.service.IngredientService;
@@ -27,7 +28,7 @@ class IngredientToolsTest {
     private static final LocalDate TODAY = LocalDate.of(2026, 10, 20);
 
     private final IngredientTools tools = new IngredientTools(new IngredientService(
-            () -> List.of(
+            new InMemoryIngredientRepository(
                     new Ingredient(3L, "Courgettes", Category.LEGUMES, new BigDecimal("2.5"), Unit.KG,
                             TODAY.plusDays(2), NOW),
                     new Ingredient(5L, "Pommes", Category.FRUITS, new BigDecimal("4"), Unit.PIECE, null, NOW)),

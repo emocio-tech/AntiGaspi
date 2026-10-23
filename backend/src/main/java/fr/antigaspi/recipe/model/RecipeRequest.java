@@ -13,8 +13,17 @@ import java.util.List;
  *            temps de préparation maximal ; {@code null} pour aucune contrainte
  * @param instructions
  *            demande de l'utilisateur en texte libre (végétarien, plat léger…) ; {@code null} si aucune
+ * @param variant
+ *            numéro de la variante (0 à 2) quand plusieurs recettes sont demandées en parallèle ; {@code null} si
+ *            aucune
  */
-public record RecipeRequest(List<Long> ingredientIds, Integer servings, Integer maxMinutes, String instructions) {
+public record RecipeRequest(List<Long> ingredientIds, Integer servings, Integer maxMinutes, String instructions,
+        Integer variant) {
+
+    /** Demande sans variante. */
+    public RecipeRequest(List<Long> ingredientIds, Integer servings, Integer maxMinutes, String instructions) {
+        this(ingredientIds, servings, maxMinutes, instructions, null);
+    }
 
     public static RecipeRequest mostUrgent() {
         return new RecipeRequest(List.of(), null, null, null);
