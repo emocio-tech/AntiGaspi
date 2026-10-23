@@ -45,7 +45,8 @@ class ChatControllerTest {
         when(assistant.replyWithTools("Qu'est-ce qui périme ?")).thenReturn(new ChatReply("Les courgettes.",
                 List.of(new ToolCalledEvent("listerIngredients", "{\"joursMax\":3}"))));
 
-        mvc.perform(post("/api/chat").contentType(MediaType.APPLICATION_JSON).content(json("\"Qu'est-ce qui périme ?\"")))
+        mvc.perform(
+                post("/api/chat").contentType(MediaType.APPLICATION_JSON).content(json("\"Qu'est-ce qui périme ?\"")))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.reply").value("Les courgettes."))
                 .andExpect(jsonPath("$.tools.length()").value(1))
                 .andExpect(jsonPath("$.tools[0].name").value("listerIngredients"))
@@ -85,8 +86,8 @@ class ChatControllerTest {
 
     @Test
     void get_renvoieLHistoriqueAvecLesRolesEnMinuscules() throws Exception {
-        when(assistant.history()).thenReturn(List.of(new ChatEntry(ChatRole.USER, "Bonjour"),
-                new ChatEntry(ChatRole.ASSISTANT, "Bonjour !")));
+        when(assistant.history()).thenReturn(
+                List.of(new ChatEntry(ChatRole.USER, "Bonjour"), new ChatEntry(ChatRole.ASSISTANT, "Bonjour !")));
 
         mvc.perform(get("/api/chat")).andExpect(status().isOk()).andExpect(jsonPath("$.messages.length()").value(2))
                 .andExpect(jsonPath("$.messages[0].role").value("user"))

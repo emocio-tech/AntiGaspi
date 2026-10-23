@@ -134,7 +134,6 @@ class RecipeControllerTest {
         when(recipeService.generate(any())).thenThrow(new RecipeGenerationException("Réponse du LLM illisible"));
 
         mvc.perform(post("/api/recipes").contentType(MediaType.APPLICATION_JSON).content("{}"))
-                .andExpect(status().isBadGateway())
-                .andExpect(jsonPath("$.message").value("Réponse du LLM illisible"));
+                .andExpect(status().isBadGateway()).andExpect(jsonPath("$.message").value("Réponse du LLM illisible"));
     }
 }

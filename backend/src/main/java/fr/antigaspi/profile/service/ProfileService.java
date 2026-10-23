@@ -31,8 +31,8 @@ public class ProfileService {
      * Remplace les préférences par la liste donnée, après avoir retiré les espaces superflus.
      *
      * @throws IllegalArgumentException
-     *             si la liste est absente, si une préférence est vide ou si deux préférences sont identiques (sans tenir
-     *             compte de la casse)
+     *             si la liste est absente, si une préférence est vide ou si deux préférences sont identiques (sans
+     *             tenir compte de la casse)
      */
     public UserProfile updatePreferences(List<String> preferences) {
         if (preferences == null) {

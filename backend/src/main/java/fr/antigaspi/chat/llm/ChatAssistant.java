@@ -69,8 +69,8 @@ public class ChatAssistant {
                 .toArray(ToolCallback[]::new);
         this.chatClient = chatClientBuilder.defaultSystem(Resources.readText(systemPrompt))
                 .defaultTools((Object[]) observedTools)
-                .defaultAdvisors(MessageChatMemoryAdvisor.builder(memory).build(),
-                        ToolCallingAdvisor.builder().build(), new SimpleLoggerAdvisor())
+                .defaultAdvisors(MessageChatMemoryAdvisor.builder(memory).build(), ToolCallingAdvisor.builder().build(),
+                        new SimpleLoggerAdvisor())
                 .build();
     }
 
