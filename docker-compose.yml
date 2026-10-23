@@ -2,7 +2,25 @@
 #   docker compose build              compile et lance les tests (première fois : quelques minutes)
 #   docker compose run --rm backend   démo : aliments urgents + recette générée, puis arrêt
 #   SPRING_PROFILES_ACTIVE=chat docker compose run --rm backend   chat en terminal avec le LLM
+#
+# Lancer l'appli complète (API + frontend Angular) sans Java ni Node installés :
+#   $env:SPRING_PROFILES_ACTIVE="web"; docker compose up --build   (PowerShell)
+#   SPRING_PROFILES_ACTIVE=web docker compose up --build           (bash)
+# puis ouvrir http://localhost:4200. Le profil « web » n'existe pas : il évite le profil demo (qui coupe le serveur web).
 services:
+  frontend:
+    image: node:24
+    working_dir: /app
+    # Les dépendances vivent dans un volume nommé (pas sur le disque Windows) : installation une seule fois
+    command: sh -c "npm ci && npx ng serve --host 0.0.0.0 --proxy-config proxy.docker.json"
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    ports:
+      - "4200:4200"
+    depends_on:
+      - backend
+
   backend:
     build: .
     image: antigaspi-backend
@@ -21,3 +39,6 @@ services:
       - ./data:/app/data:ro
     ports:
       - "8080:8080"
+
+volumes:
+  frontend_node_modules:
