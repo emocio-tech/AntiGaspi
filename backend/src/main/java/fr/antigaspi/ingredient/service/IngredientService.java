@@ -7,9 +7,11 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
@@ -18,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import fr.antigaspi.ingredient.model.Category;
 import fr.antigaspi.ingredient.model.Ingredient;
 import fr.antigaspi.ingredient.model.IngredientDraft;
+import fr.antigaspi.ingredient.model.IngredientPatch;
 import fr.antigaspi.ingredient.model.IngredientView;
 import fr.antigaspi.ingredient.model.Urgency;
 import fr.antigaspi.ingredient.repository.IngredientRepository;
@@ -99,6 +102,94 @@ public class IngredientService {
         BigDecimal quantity = validate(draft);
         Ingredient saved = repository.save(toIngredient(null, draft, quantity, clock.instant()));
         return toView(saved, LocalDate.now(clock));
+    }
+
+    /**
+     * Ajoute plusieurs aliments : tous ou aucun.
+     *
+     * @return les aliments ajoutés, dans l'ordre reçu
+     *
+     * @throws IllegalArgumentException
+     *             si la liste est vide ou nulle, ou si une valeur est refusée (voir {@link #add}) ; le message désigne
+     *             l'aliment en cause
+     */
+    @Transactional
+    public List<IngredientView> addAll(List<IngredientDraft> drafts) {
+        if (drafts == null || drafts.isEmpty()) {
+            throw new IllegalArgumentException("Aucun aliment à ajouter");
+        }
+        Instant now = clock.instant();
+        List<Ingredient> toSave = drafts.stream().map(draft -> {
+            try {
+                return toIngredient(null, draft, validate(draft), now);
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException(label(draft.name()) + " : " + e.getMessage(), e);
+            }
+        }).toList();
+        return saveAll(toSave);
+    }
+
+    /**
+     * Modifie plusieurs aliments, champ par champ : tous ou aucun. Un champ absent reste inchangé ; l'identifiant et la
+     * date d'ajout sont conservés.
+     *
+     * @return les aliments modifiés, dans l'ordre reçu
+     *
+     * @throws IllegalArgumentException
+     *             si la liste est vide ou nulle, si un identifiant est en double, si une valeur renseignée est refusée
+     *             (voir {@link #add}) ou si une date est à la fois donnée et effacée
+     * @throws IngredientNotFoundException
+     *             si un identifiant est inconnu (rien n'est alors modifié)
+     */
+    @Transactional
+    public List<IngredientView> updateAll(List<IngredientPatch> patches) {
+        if (patches == null || patches.isEmpty()) {
+            throw new IllegalArgumentException("Aucune modification à appliquer");
+        }
+        Set<Long> seen = new HashSet<>();
+        patches.forEach(patch -> {
+            if (!seen.add(patch.id())) {
+                throw new IllegalArgumentException("Identifiant en double dans la demande : " + patch.id());
+            }
+        });
+        Map<Long, Ingredient> existing = repository.findAll().stream()
+                .collect(Collectors.toMap(Ingredient::id, Function.identity()));
+        List<Long> unknown = patches.stream().map(IngredientPatch::id).filter(id -> !existing.containsKey(id)).toList();
+        if (!unknown.isEmpty()) {
+            throw new IngredientNotFoundException(unknown);
+        }
+        List<Ingredient> toSave = patches.stream().map(patch -> {
+            Ingredient current = existing.get(patch.id());
+            try {
+                return patched(current, patch);
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException(label(current.name()) + " : " + e.getMessage(), e);
+            }
+        }).toList();
+        return saveAll(toSave);
+    }
+
+    /** L'aliment après application des seuls champs renseignés du patch, validés comme à l'ajout. */
+    private static Ingredient patched(Ingredient current, IngredientPatch patch) {
+        if (patch.clearExpiryDate() && patch.expiryDate() != null) {
+            throw new IllegalArgumentException("La date de péremption ne peut pas être à la fois donnée et effacée");
+        }
+        LocalDate expiryDate = patch.clearExpiryDate() ? null
+                : patch.expiryDate() != null ? patch.expiryDate() : current.expiryDate();
+        IngredientDraft merged = new IngredientDraft(patch.name() != null ? patch.name() : current.name(),
+                patch.category() != null ? patch.category() : current.category(),
+                patch.quantity() != null ? patch.quantity() : current.quantity(),
+                patch.unit() != null ? patch.unit() : current.unit(), expiryDate);
+        return toIngredient(current.id(), merged, validate(merged), current.addedAt());
+    }
+
+    private List<IngredientView> saveAll(List<Ingredient> ingredients) {
+        LocalDate today = LocalDate.now(clock);
+        return ingredients.stream().map(ingredient -> toView(repository.save(ingredient), today)).toList();
+    }
+
+    private static String label(String name) {
+        return name == null || name.isBlank() ? "Aliment sans nom" : "« " + name.strip() + " »";
     }
 
     /**

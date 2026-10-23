@@ -1,9 +1,9 @@
 # Exposer le serveur MCP avec un tunnel Cloudflare
 
-Le serveur MCP d'AntiGaspi (profil Spring `mcp`, Streamable HTTP sur `/mcp`, tool `listerIngredients` seul, en lecture seule) n'écoute que sur `127.0.0.1:8080`. Un assistant hébergé dans le cloud, comme ChatGPT, ne peut pas l'atteindre : il lui faut une URL HTTPS publique. Un **tunnel Cloudflare nommé** (`cloudflared`) la fournit sans ouvrir de port : le poste établit une connexion sortante vers Cloudflare, qui relaie les requêtes.
+Le serveur MCP d'AntiGaspi (profil Spring `mcp`, Streamable HTTP sur `/mcp`, tools de l'inventaire : `listerIngredients`, `ajouterIngredients`, `supprimerIngredients`, `modifierIngredients`) n'écoute que sur `127.0.0.1:8080`. Un assistant hébergé dans le cloud, comme ChatGPT, ne peut pas l'atteindre : il lui faut une URL HTTPS publique. Un **tunnel Cloudflare nommé** (`cloudflared`) la fournit sans ouvrir de port : le poste établit une connexion sortante vers Cloudflare, qui relaie les requêtes.
 
 > **Sécurité : lisez ceci avant de commencer.**
-> - Le serveur MCP n'a **aucune authentification**. Tant que le tunnel tourne, toute personne connaissant le nom d'hôte peut lire l'inventaire. Les noms d'hôte ne sont pas secrets (ils apparaissent dans les journaux publics de certificats).
+> - Le serveur MCP n'a **aucune authentification**. Tant que le tunnel tourne, toute personne connaissant le nom d'hôte peut lire **et modifier** l'inventaire (ajouter, modifier ou supprimer des aliments dans la base). Les noms d'hôte ne sont pas secrets (ils apparaissent dans les journaux publics de certificats).
 > - Le backend sert **tout** sur le port 8080, y compris l'API REST du front (`PUT /api/profile`, `DELETE /api/utensils/{id}`, et `POST /api/chat` ou `POST /api/recipes`, qui consomment le LLM). **Le tunnel ne doit transmettre que `/mcp`** : c'est le rôle de la règle `path` du gabarit `deploy/cloudflared/config.example.yml`. Ne la retirez pas.
 > - Arrêtez le tunnel quand vous ne l'utilisez pas.
 > - Une authentification (jeton Bearer dans Spring, Cloudflare Access ou OAuth) est à prévoir avant d'y mettre des données réelles : voir la question ouverte du [README](../README.md).
