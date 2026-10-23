@@ -1,6 +1,11 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { Router } from '@angular/router';
+import { generated } from '../recipes/recipe.fixtures';
+import { RecipeStore } from '../recipes/recipe-store';
+import { InventoryStore } from '../inventory/inventory-store';
+import { signal } from '@angular/core';
 import { ChatPanel } from './chat-panel';
 
 describe('ChatPanel', () => {
@@ -10,7 +15,11 @@ describe('ChatPanel', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [ChatPanel],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: InventoryStore, useValue: { items: signal([]) } },
+      ],
     });
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(ChatPanel);
@@ -70,7 +79,7 @@ describe('ChatPanel', () => {
     expect(all('chat-text').map((t) => t.textContent?.trim())).toEqual(['Qu’est-ce qui périme ?']);
     expect((q('chat-input') as HTMLInputElement).value).toBe('');
     expect(q('thinking')?.textContent).toContain('Le chef réfléchit');
-    req.flush({ reply: 'Les courgettes.', tools: [] });
+    req.flush({ reply: 'Les courgettes.', tools: [], recipes: [] });
   });
 
   it('affiche la réponse avec les tools appelés', async () => {
@@ -80,7 +89,7 @@ describe('ChatPanel', () => {
 
     http
       .expectOne('/api/chat')
-      .flush({ reply: 'Les courgettes.', tools: [{ name: 'listerIngredients', arguments: '{}' }] });
+      .flush({ reply: 'Les courgettes.', tools: [{ name: 'listerIngredients', arguments: '{}' }], recipes: [] });
     await fixture.whenStable();
     maj();
 
@@ -99,7 +108,7 @@ describe('ChatPanel', () => {
     envoyer();
     saisir('Encore');
     expect((q('chat-send') as HTMLButtonElement).disabled).toBe(true);
-    http.expectOne('/api/chat').flush({ reply: 'Salut', tools: [] });
+    http.expectOne('/api/chat').flush({ reply: 'Salut', tools: [], recipes: [] });
   });
 
   it('envoie une suggestion au clic', async () => {
@@ -110,7 +119,7 @@ describe('ChatPanel', () => {
 
     const req = http.expectOne({ method: 'POST', url: '/api/chat' });
     expect(req.request.body.message).toBe(all('chat-suggestion')[0].textContent?.trim());
-    req.flush({ reply: 'Ok', tools: [] });
+    req.flush({ reply: 'Ok', tools: [], recipes: [] });
   });
 
   it('affiche l’erreur avec un bouton pour renvoyer le message', async () => {
@@ -125,7 +134,7 @@ describe('ChatPanel', () => {
 
     q('chat-retry')?.click();
     maj();
-    http.expectOne({ method: 'POST', url: '/api/chat' }).flush({ reply: 'Bonjour !', tools: [] });
+    http.expectOne({ method: 'POST', url: '/api/chat' }).flush({ reply: 'Bonjour !', tools: [], recipes: [] });
   });
 
   it('rend en HTML le Markdown des réponses de l’assistant', async () => {
@@ -149,7 +158,7 @@ describe('ChatPanel', () => {
     saisir('Qu’est-ce qui périme ?');
     envoyer();
 
-    http.expectOne('/api/chat').flush({ reply: '**Les courgettes** périment demain.', tools: [] });
+    http.expectOne('/api/chat').flush({ reply: '**Les courgettes** périment demain.', tools: [], recipes: [] });
     await fixture.whenStable();
     maj();
 
@@ -205,5 +214,36 @@ describe('ChatPanel', () => {
 
     expect(all('chat-message').length).toBe(0);
     expect(q('chat-empty')).not.toBeNull();
+  });
+
+  it('affiche une carte par recette générée et l’ouvre dans le détail au clic', async () => {
+    await historique();
+    saisir('Une recette ?');
+    envoyer();
+    const recette = generated({ title: 'Gratin de courgettes', servings: 4, preparationMinutes: 35 });
+    http
+      .expectOne({ method: 'POST', url: '/api/chat' })
+      .flush({ reply: 'Voici.', tools: [], recipes: [recette] });
+    maj();
+
+    const cartes = all('chat-recipe');
+    expect(cartes).toHaveLength(1);
+    expect(cartes[0].textContent).toContain('Gratin de courgettes');
+    expect(cartes[0].textContent).toContain('4');
+    expect(cartes[0].textContent).toContain('35');
+
+    const router = TestBed.inject(Router);
+    const navigate = vi.spyOn(router, 'navigateByUrl').mockResolvedValue(true);
+    const index = TestBed.inject(RecipeStore);
+    q('chat-recipe-open')!.click();
+
+    expect(navigate).toHaveBeenCalledWith('/recettes/100');
+    expect(index.result(100)).toEqual(recette);
+  });
+
+  it('n’affiche aucune carte pour une réponse sans recette', async () => {
+    await historique([{ role: 'assistant', text: 'Bonjour !' }]);
+
+    expect(q('chat-recipe')).toBeNull();
   });
 });

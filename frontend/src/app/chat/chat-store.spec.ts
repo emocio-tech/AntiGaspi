@@ -2,6 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { InventoryStore } from '../inventory/inventory-store';
+import { generated } from '../recipes/recipe.fixtures';
 import { ChatStore } from './chat-store';
 
 describe('ChatStore', () => {
@@ -16,7 +17,7 @@ describe('ChatStore', () => {
 
   afterEach(() => http.verify());
 
-  const reponse = (reply: string, tools: { name: string; arguments: string }[] = []) => ({ reply, tools });
+  const reponse = (reply: string, tools: { name: string; arguments: string }[] = []) => ({ reply, tools, recipes: [] as unknown[] });
 
   it('charge l’historique de la conversation, sans tools', () => {
     store.load();
@@ -29,9 +30,18 @@ describe('ChatStore', () => {
     });
 
     expect(store.messages()).toEqual([
-      { role: 'user', text: 'Bonjour', tools: [] },
-      { role: 'assistant', text: 'Bonjour !', tools: [] },
+      { role: 'user', text: 'Bonjour', tools: [], recipes: [] },
+      { role: 'assistant', text: 'Bonjour !', tools: [], recipes: [] },
     ]);
+  });
+
+  it('conserve dans le message les recettes générées par la réponse', () => {
+    const recette = generated();
+    store.send('Une recette ?');
+
+    http.expectOne({ method: 'POST', url: '/api/chat' }).flush({ reply: 'Voici.', tools: [], recipes: [recette] });
+
+    expect(store.messages()[1].recipes).toEqual([recette]);
   });
 
   it('ne recharge l’historique qu’une fois', () => {
@@ -46,7 +56,7 @@ describe('ChatStore', () => {
   it('affiche tout de suite la question, puis la réponse avec les tools appelés', () => {
     store.send('  Qu’est-ce qui périme ?  ');
 
-    expect(store.messages()).toEqual([{ role: 'user', text: 'Qu’est-ce qui périme ?', tools: [] }]);
+    expect(store.messages()).toEqual([{ role: 'user', text: 'Qu’est-ce qui périme ?', tools: [], recipes: [] }]);
     expect(store.pending()).toBe(true);
     const req = http.expectOne({ method: 'POST', url: '/api/chat' });
     expect(req.request.body).toEqual({ message: 'Qu’est-ce qui périme ?' });
@@ -58,6 +68,7 @@ describe('ChatStore', () => {
       role: 'assistant',
       text: 'Les courgettes.',
       tools: [{ name: 'listerIngredients', arguments: '{"joursMax":3}' }],
+      recipes: [],
     });
   });
 
@@ -85,7 +96,7 @@ describe('ChatStore', () => {
 
     expect(store.error()).toBe('Échec de la réponse de l’assistant');
     expect(store.pending()).toBe(false);
-    expect(store.messages()).toEqual([{ role: 'user', text: 'Bonjour', tools: [] }]);
+    expect(store.messages()).toEqual([{ role: 'user', text: 'Bonjour', tools: [], recipes: [] }]);
   });
 
   it('renvoie le même message sans le réafficher, et efface l’erreur', () => {

@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -23,6 +24,11 @@ import fr.antigaspi.chat.llm.ToolCalledEvent;
 import fr.antigaspi.chat.model.ChatEntry;
 import fr.antigaspi.chat.model.ChatReply;
 import fr.antigaspi.chat.model.ChatRole;
+import fr.antigaspi.recipe.model.GeneratedRecipe;
+import fr.antigaspi.recipe.model.Recipe;
+import fr.antigaspi.recipe.model.RecipeIngredient;
+import fr.antigaspi.recipe.model.RecipeIssue;
+import fr.antigaspi.recipe.model.RecipeIssueType;
 
 /**
  * API REST du chat : {@link ChatAssistant} est simulé, donc aucun appel au LLM.
@@ -43,7 +49,7 @@ class ChatControllerTest {
     @Test
     void post_renvoieLaReponseEtLesToolsAppeles() throws Exception {
         when(assistant.replyWithTools("Qu'est-ce qui périme ?")).thenReturn(new ChatReply("Les courgettes.",
-                List.of(new ToolCalledEvent("listerIngredients", "{\"joursMax\":3}"))));
+                List.of(new ToolCalledEvent("listerIngredients", "{\"joursMax\":3}")), List.of()));
 
         mvc.perform(
                 post("/api/chat").contentType(MediaType.APPLICATION_JSON).content(json("\"Qu'est-ce qui périme ?\"")))
@@ -55,10 +61,25 @@ class ChatControllerTest {
 
     @Test
     void post_sansToolAppele_renvoieUneListeVide() throws Exception {
-        when(assistant.replyWithTools("Bonjour")).thenReturn(new ChatReply("Bonjour !", List.of()));
+        when(assistant.replyWithTools("Bonjour")).thenReturn(new ChatReply("Bonjour !", List.of(), List.of()));
 
         mvc.perform(post("/api/chat").contentType(MediaType.APPLICATION_JSON).content(json("\"Bonjour\"")))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.tools").isEmpty());
+                .andExpect(status().isOk()).andExpect(jsonPath("$.tools").isEmpty())
+                .andExpect(jsonPath("$.recipes").isEmpty());
+    }
+
+    @Test
+    void post_recetteGeneree_renvoieRecipeEtIssues() throws Exception {
+        Recipe recipe = new Recipe("Courgettes sautées", 2, 15, List.of("Poêle"),
+                List.of(new RecipeIngredient(3L, "Courgettes", new BigDecimal("2"), "pièce")),
+                List.of("Faire sauter."));
+        when(assistant.replyWithTools("Une recette ?")).thenReturn(new ChatReply("Voici.", List.of(), List
+                .of(new GeneratedRecipe(recipe, List.of(new RecipeIssue(RecipeIssueType.IDENTIFIANT_INCONNU, "x"))))));
+
+        mvc.perform(post("/api/chat").contentType(MediaType.APPLICATION_JSON).content(json("\"Une recette ?\"")))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.recipes.length()").value(1))
+                .andExpect(jsonPath("$.recipes[0].recipe.title").value("Courgettes sautées"))
+                .andExpect(jsonPath("$.recipes[0].issues[0].type").value("IDENTIFIANT_INCONNU"));
     }
 
     @Test

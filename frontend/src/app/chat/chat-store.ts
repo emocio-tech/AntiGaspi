@@ -34,7 +34,7 @@ export class ChatStore {
       // Un message envoyé avant l'arrivée de l'historique reste prioritaire
       next: (history) => {
         if (this.messages().length === 0) {
-          this.messages.set(history.messages.map((message) => ({ ...message, tools: [] })));
+          this.messages.set(history.messages.map((message) => ({ ...message, tools: [], recipes: [] })));
         }
       },
       error: () => (this.loaded = false),
@@ -45,7 +45,7 @@ export class ChatStore {
   send(text: string): void {
     const message = text.trim();
     if (!message || this.pending()) return;
-    this.messages.update((messages) => [...messages, { role: 'user', text: message, tools: [] }]);
+    this.messages.update((messages) => [...messages, { role: 'user', text: message, tools: [], recipes: [] }]);
     this.post(message);
   }
 
@@ -77,7 +77,7 @@ export class ChatStore {
         this.pending.set(false);
         this.messages.update((messages) => [
           ...messages,
-          { role: 'assistant', text: reply.reply, tools: reply.tools },
+          { role: 'assistant', text: reply.reply, tools: reply.tools, recipes: reply.recipes },
         ]);
         if (reply.tools.some((tool) => INVENTORY_TOOLS.includes(tool.name))) {
           // Récupéré à la demande : l'injecter plus tôt lancerait son GET dès l'ouverture du chat

@@ -2,6 +2,8 @@ package fr.antigaspi.chat.api;
 
 import java.util.List;
 
+import fr.antigaspi.recipe.api.RecipeResponse;
+
 /**
  * Réponse de l'assistant telle que le front la reçoit.
  *
@@ -9,8 +11,10 @@ import java.util.List;
  *            réponse finale
  * @param tools
  *            tools appelés pour ce message, dans l'ordre
+ * @param recipes
+ *            recettes générées pour ce message (même forme que {@code POST /api/recipes}), vide sinon
  */
-public record ChatResponse(String reply, List<ToolCallResponse> tools) {
+public record ChatResponse(String reply, List<ToolCallResponse> tools, List<RecipeResponse> recipes) {
 
     /**
      * Appel d'un tool par le LLM.

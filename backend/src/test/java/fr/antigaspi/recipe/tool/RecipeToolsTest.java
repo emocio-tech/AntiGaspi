@@ -61,6 +61,9 @@ class RecipeToolsTest {
     private final IngredientService ingredientService = new IngredientService(
             new InMemoryIngredientRepository(INVENTORY.toArray(Ingredient[]::new)), Clock.fixed(NOW, ZoneOffset.UTC));
 
+    /** Événements publiés par le tool. */
+    private final List<Object> events = new java.util.ArrayList<>();
+
     private final RecipeTools tools = new RecipeTools(
             new RecipeService(ingredientService, new UtensilService(new InMemoryUtensilRepository()),
                     mock(ProfileService.class), new CookingService(ingredientService,
@@ -71,7 +74,8 @@ class RecipeToolsTest {
                             throw e;
                         }
                         return (Recipe) llmAnswer.get();
-                    }, new RecipeChecker(), new RecipeProperties(8, 2, 5)));
+                    }, new RecipeChecker(), new RecipeProperties(8, 2, 5)),
+            events::add);
 
     private static Recipe recipe(Long courgettesId) {
         return new Recipe("Courgettes sautées", 2, 15, List.of("Poêle"),
@@ -153,5 +157,26 @@ class RecipeToolsTest {
         assertThat(priorityIds()).containsExactly(3L);
         assertThat(receivedContext.get().instructions()).isEqualTo("végétarien");
         assertThat(result).contains("Courgettes sautées");
+    }
+
+    @Test
+    void recetteGeneree_evenementPublieAvecLaRecetteControlee() {
+        llmAnswer.set(recipe(99L));
+
+        Proposition proposition = tools.genererRecette(null, null, null, null);
+
+        assertThat(events).singleElement().isInstanceOfSatisfying(RecipeGeneratedEvent.class, event -> {
+            assertThat(event.generated().recipe()).isEqualTo(proposition.recette());
+            assertThat(event.generated().issues()).isEqualTo(proposition.problemes());
+        });
+    }
+
+    @Test
+    void generationEnErreur_aucunEvenement() {
+        tools.genererRecette(null, 0, null, null);
+        llmAnswer.set(new RecipeGenerationException("LLM indisponible"));
+        tools.genererRecette(null, null, null, null);
+
+        assertThat(events).isEmpty();
     }
 }

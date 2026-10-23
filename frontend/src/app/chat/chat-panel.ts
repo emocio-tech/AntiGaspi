@@ -1,5 +1,8 @@
-import { afterRenderEffect, Component, ElementRef, inject, signal, viewChild } from '@angular/core';
+import { afterRenderEffect, Component, ElementRef, inject, Injector, signal, viewChild } from '@angular/core';
+import { Router } from '@angular/router';
 import { LucideChefHat, LucideRotateCcw, LucideSendHorizontal, LucideWrench } from '@lucide/angular';
+import { GeneratedRecipe } from '../recipes/recipe.model';
+import { RecipeStore } from '../recipes/recipe-store';
 import { ChatStore } from './chat-store';
 import { MarkdownPipe } from './markdown';
 
@@ -24,6 +27,8 @@ const SUGGESTIONS = [
 export class ChatPanel {
   protected readonly store = inject(ChatStore);
   protected readonly suggestions = SUGGESTIONS;
+  private readonly injector = inject(Injector);
+  private readonly router = inject(Router);
   protected readonly draft = signal('');
 
   private readonly log = viewChild<ElementRef<HTMLElement>>('log');
@@ -46,6 +51,13 @@ export class ChatPanel {
     if (!text || this.store.pending()) return;
     this.store.send(text);
     this.draft.set('');
+  }
+
+  /** Ouvre la recette dans l'écran de détail (et son « J'ai cuisiné »), comme une carte de l'écran Recettes. */
+  protected openRecipe(result: GeneratedRecipe): void {
+    // Récupéré à la demande : l'injecter plus tôt lancerait la lecture de l'inventaire dès l'ouverture du chat
+    const index = this.injector.get(RecipeStore).addFromChat(result);
+    this.router.navigateByUrl(`/recettes/${index}`);
   }
 
   protected valueOf(event: Event): string {
