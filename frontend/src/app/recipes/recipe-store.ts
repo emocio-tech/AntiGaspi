@@ -9,6 +9,8 @@ export const MIN_SERVINGS = 1;
 export const MAX_SERVINGS = 12;
 /** Nombre de recettes demandées en parallèle à chaque génération. */
 export const RECIPE_COUNT = 3;
+/** Premier index des recettes venues du chat : au-dessus de toute carte de l'écran Recettes (0 à 2). */
+export const CHAT_RECIPE_OFFSET = 100;
 /** Nombre maximal d'aliments urgents présélectionnés. */
 export const MAX_PRESELECTED = 5;
 
@@ -23,7 +25,8 @@ const isUrgent = (ingredient: Ingredient) => ingredient.urgency === 'EXPIRED_OR_
 
 /**
  * Réglages de la génération et recettes reçues. Chaque génération lance {@link RECIPE_COUNT} appels en parallèle ;
- * une recette en échec n'empêche pas les autres. Les recettes ne sont pas conservées au-delà de la session.
+ * une recette en échec n'empêche pas les autres. Chaque appel porte un numéro de variante (0 à 2) pour que les recettes
+ * diffèrent. Les recettes ne sont pas conservées au-delà de la session.
  */
 @Injectable({ providedIn: 'root' })
 export class RecipeStore {
@@ -47,6 +50,8 @@ export class RecipeStore {
         .map((ingredient) => ingredient.id)
         .slice(0, MAX_PRESELECTED),
   );
+  /** Recettes générées par le chat, à part des cartes : une nouvelle génération ne les efface pas. */
+  private readonly chatResults = signal<GeneratedRecipe[]>([]);
   readonly slots = signal<RecipeSlot[]>([]);
   readonly generating = computed(() => this.slots().some((slot) => slot.status === 'loading'));
 
@@ -68,7 +73,7 @@ export class RecipeStore {
     const body = { ingredientIds: this.selectedIds(), servings: this.servings(), maxMinutes: this.maxMinutes() };
     this.slots.set(Array.from({ length: RECIPE_COUNT }, () => ({ status: 'loading' }) as RecipeSlot));
     for (let index = 0; index < RECIPE_COUNT; index++) {
-      this.http.post<GeneratedRecipe>('/api/recipes', body).subscribe({
+      this.http.post<GeneratedRecipe>('/api/recipes', { ...body, variant: index }).subscribe({
         next: (result) => this.setSlot(run, index, { status: 'done', result }),
         error: (error: unknown) => this.setSlot(run, index, { status: 'error', message: messageOf(error) }),
       });
@@ -77,8 +82,20 @@ export class RecipeStore {
 
   /** La recette reçue à cette position, `null` si elle est absente, en cours ou en échec. */
   result(index: number): GeneratedRecipe | null {
+    if (index >= CHAT_RECIPE_OFFSET) return this.chatResults()[index - CHAT_RECIPE_OFFSET] ?? null;
     const slot = this.slots()[index];
     return slot?.status === 'done' ? slot.result : null;
+  }
+
+  /**
+   * Rend consultable une recette générée par le chat et renvoie son index (à partir de {@link CHAT_RECIPE_OFFSET}),
+   * utilisable comme celui d'une carte dans `/recettes/:id`. Le même objet ajouté deux fois garde son index.
+   */
+  addFromChat(result: GeneratedRecipe): number {
+    const known = this.chatResults().indexOf(result);
+    if (known >= 0) return CHAT_RECIPE_OFFSET + known;
+    this.chatResults.update((results) => [...results, result]);
+    return CHAT_RECIPE_OFFSET + this.chatResults().length - 1;
   }
 
   /** Nombre d'aliments urgents (aujourd'hui ou sous 3 jours) utilisés par la recette. */

@@ -100,6 +100,18 @@ class RecipeControllerTest {
     }
 
     @Test
+    void generate_transmetLaVarianteEtRefuseUneVarianteIllisible() throws Exception {
+        when(recipeService.generate(any())).thenReturn(conforme());
+
+        mvc.perform(post("/api/recipes").contentType(MediaType.APPLICATION_JSON).content("{\"variant\":1}"))
+                .andExpect(status().isOk());
+        assertThat(requeteTransmise().variant()).isEqualTo(1);
+
+        mvc.perform(post("/api/recipes").contentType(MediaType.APPLICATION_JSON).content("{\"variant\":\"abc\"}"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").isNotEmpty());
+    }
+
+    @Test
     void generate_corpsVide_cuisineLesPlusUrgents() throws Exception {
         when(recipeService.generate(any())).thenReturn(conforme());
 

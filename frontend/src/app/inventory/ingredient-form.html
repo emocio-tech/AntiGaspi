@@ -1,0 +1,71 @@
+<form class="form" (submit)="$event.preventDefault(); submit()">
+  <div class="form-head">
+    <h2>{{ ingredient() ? 'Modifier l’aliment' : 'Ajouter un aliment' }}</h2>
+    <button type="button" class="close" aria-label="Fermer" data-testid="form-close" (click)="closed.emit()">
+      <svg lucideX [size]="18"></svg>
+    </button>
+  </div>
+
+  <div class="fields">
+    <label class="field wide">
+      Nom
+      <input
+        #nameField
+        type="text"
+        data-testid="form-name"
+        [value]="name()"
+        (input)="name.set($any($event.target).value)"
+      />
+    </label>
+    <label class="field">
+      Catégorie
+      <select data-testid="form-category" (change)="category.set($any($event.target).value)">
+        <option value="" [selected]="category() === ''">Choisir…</option>
+        @for (c of categories(); track c.code) {
+          <option [value]="c.code" [selected]="c.code === category()">{{ c.label }}</option>
+        }
+      </select>
+    </label>
+    <label class="field">
+      Quantité
+      <input
+        type="number"
+        min="0"
+        step="any"
+        data-testid="form-quantity"
+        [value]="quantity()"
+        (input)="quantity.set($any($event.target).value)"
+      />
+    </label>
+    <label class="field">
+      Unité
+      <select data-testid="form-unit" (change)="unit.set($any($event.target).value)">
+        <option value="" [selected]="unit() === ''">Choisir…</option>
+        @for (u of units; track u.code) {
+          <option [value]="u.code" [selected]="u.code === unit()">{{ u.symbol }}</option>
+        }
+      </select>
+    </label>
+    <label class="field">
+      Date de péremption
+      <input
+        type="date"
+        data-testid="form-expiry"
+        [value]="expiry()"
+        (input)="expiry.set($any($event.target).value)"
+      />
+      <span class="hint">Laissez vide pour une date estimée selon la catégorie.</span>
+    </label>
+  </div>
+
+  @if (error()) {
+    <p class="alert" role="alert" data-testid="form-error">{{ error() }}</p>
+  }
+
+  <div class="actions">
+    <button type="button" class="btn" (click)="closed.emit()">Fermer</button>
+    <button type="submit" class="btn btn-primary" data-testid="form-submit" [disabled]="!valid() || saving()">
+      {{ ingredient() ? 'Enregistrer' : 'Ajouter' }}
+    </button>
+  </div>
+</form>

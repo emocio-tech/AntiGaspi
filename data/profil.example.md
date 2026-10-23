@@ -8,5 +8,3 @@
 
 ## Préférences
 - n'est pas difficile
-
-## Historique des retours

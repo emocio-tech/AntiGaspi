@@ -17,6 +17,7 @@ import org.springframework.ai.support.ToolCallbacks;
 import org.springframework.ai.tool.ToolCallback;
 
 import fr.antigaspi.ingredient.model.Category;
+import fr.antigaspi.ingredient.repository.InMemoryIngredientRepository;
 import fr.antigaspi.ingredient.model.Ingredient;
 import fr.antigaspi.ingredient.model.IngredientView;
 import fr.antigaspi.ingredient.model.Unit;
@@ -28,6 +29,9 @@ import fr.antigaspi.recipe.model.RecipeContext;
 import fr.antigaspi.recipe.model.RecipeIngredient;
 import fr.antigaspi.recipe.model.RecipeIssue;
 import fr.antigaspi.recipe.model.RecipeIssueType;
+import fr.antigaspi.recipe.repository.InMemoryCookedRecipeRepository;
+import fr.antigaspi.recipe.service.CookingService;
+import fr.antigaspi.recipe.service.CookingService;
 import fr.antigaspi.recipe.service.RecipeChecker;
 import fr.antigaspi.recipe.service.RecipeProperties;
 import fr.antigaspi.recipe.service.RecipeService;
@@ -54,15 +58,24 @@ class RecipeToolsTest {
     /** Réponse du faux générateur ; une exception est levée telle quelle. */
     private final AtomicReference<Object> llmAnswer = new AtomicReference<>(recipe(3L));
 
+    private final IngredientService ingredientService = new IngredientService(
+            new InMemoryIngredientRepository(INVENTORY.toArray(Ingredient[]::new)), Clock.fixed(NOW, ZoneOffset.UTC));
+
+    /** Événements publiés par le tool. */
+    private final List<Object> events = new java.util.ArrayList<>();
+
     private final RecipeTools tools = new RecipeTools(
-            new RecipeService(new IngredientService(() -> INVENTORY, Clock.fixed(NOW, ZoneOffset.UTC)),
-                    new UtensilService(new InMemoryUtensilRepository()), mock(ProfileService.class), context -> {
+            new RecipeService(ingredientService, new UtensilService(new InMemoryUtensilRepository()),
+                    mock(ProfileService.class), new CookingService(ingredientService,
+                            new InMemoryCookedRecipeRepository(), Clock.fixed(NOW, ZoneOffset.UTC)),
+                    context -> {
                         receivedContext.set(context);
                         if (llmAnswer.get() instanceof RuntimeException e) {
                             throw e;
                         }
                         return (Recipe) llmAnswer.get();
-                    }, new RecipeChecker(), new RecipeProperties(8, 2)));
+                    }, new RecipeChecker(), new RecipeProperties(8, 2, 5)),
+            events::add);
 
     private static Recipe recipe(Long courgettesId) {
         return new Recipe("Courgettes sautées", 2, 15, List.of("Poêle"),
@@ -144,5 +157,26 @@ class RecipeToolsTest {
         assertThat(priorityIds()).containsExactly(3L);
         assertThat(receivedContext.get().instructions()).isEqualTo("végétarien");
         assertThat(result).contains("Courgettes sautées");
+    }
+
+    @Test
+    void recetteGeneree_evenementPublieAvecLaRecetteControlee() {
+        llmAnswer.set(recipe(99L));
+
+        Proposition proposition = tools.genererRecette(null, null, null, null);
+
+        assertThat(events).singleElement().isInstanceOfSatisfying(RecipeGeneratedEvent.class, event -> {
+            assertThat(event.generated().recipe()).isEqualTo(proposition.recette());
+            assertThat(event.generated().issues()).isEqualTo(proposition.problemes());
+        });
+    }
+
+    @Test
+    void generationEnErreur_aucunEvenement() {
+        tools.genererRecette(null, 0, null, null);
+        llmAnswer.set(new RecipeGenerationException("LLM indisponible"));
+        tools.genererRecette(null, null, null, null);
+
+        assertThat(events).isEmpty();
     }
 }

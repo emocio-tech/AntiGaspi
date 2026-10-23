@@ -13,8 +13,8 @@ import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * Lecture des ressources de l'application : fichiers JSON de données statiques (en attendant la base de données) et
- * prompts texte.
+ * Lecture des ressources de l'application : fichiers JSON des données d'amorçage (lus par la migration
+ * {@code SeedDataMigration}) et prompts texte.
  */
 public final class Resources {
 

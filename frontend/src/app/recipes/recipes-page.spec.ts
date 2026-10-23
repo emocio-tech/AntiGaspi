@@ -84,7 +84,7 @@ describe('RecipesPage', () => {
 
     const reqs = requetes();
     expect(reqs.length).toBe(3);
-    expect(reqs[0].request.body).toEqual({ ingredientIds: [1, 2], servings: 3, maxMinutes: 45 });
+    expect(reqs[0].request.body).toEqual({ ingredientIds: [1, 2], servings: 3, maxMinutes: 45, variant: 0 });
     expect(q('loading')?.textContent).toContain('Nova Lite compose vos recettes');
     reqs.forEach((req) => req.flush(generated()));
   });

@@ -1,7 +1,11 @@
 import { HttpClient } from '@angular/common/http';
-import { inject, Injectable, signal } from '@angular/core';
+import { inject, Injectable, Injector, signal } from '@angular/core';
 import { messageOf } from '../api-error';
+import { InventoryStore } from '../inventory/inventory-store';
 import { ChatHistory, ChatMessage, ChatReply } from './chat.model';
+
+/** Tools qui modifient l'inventaire : l'écran Inventaire doit alors être rechargé. */
+const INVENTORY_TOOLS = ['ajouterAliment', 'modifierQuantite', 'retirerAliments'];
 
 /**
  * Conversation avec l'assistant. Le serveur n'en garde qu'une, en mémoire : le store la recharge au premier affichage
@@ -11,6 +15,7 @@ import { ChatHistory, ChatMessage, ChatReply } from './chat.model';
 export class ChatStore {
   private readonly http = inject(HttpClient);
 
+  private readonly injector = inject(Injector);
   private loaded = false;
   /** Dernier message envoyé, conservé tant qu'il n'a pas reçu de réponse pour pouvoir le renvoyer. */
   private unanswered: string | null = null;
@@ -29,7 +34,7 @@ export class ChatStore {
       // Un message envoyé avant l'arrivée de l'historique reste prioritaire
       next: (history) => {
         if (this.messages().length === 0) {
-          this.messages.set(history.messages.map((message) => ({ ...message, tools: [] })));
+          this.messages.set(history.messages.map((message) => ({ ...message, tools: [], recipes: [] })));
         }
       },
       error: () => (this.loaded = false),
@@ -40,7 +45,7 @@ export class ChatStore {
   send(text: string): void {
     const message = text.trim();
     if (!message || this.pending()) return;
-    this.messages.update((messages) => [...messages, { role: 'user', text: message, tools: [] }]);
+    this.messages.update((messages) => [...messages, { role: 'user', text: message, tools: [], recipes: [] }]);
     this.post(message);
   }
 
@@ -72,8 +77,12 @@ export class ChatStore {
         this.pending.set(false);
         this.messages.update((messages) => [
           ...messages,
-          { role: 'assistant', text: reply.reply, tools: reply.tools },
+          { role: 'assistant', text: reply.reply, tools: reply.tools, recipes: reply.recipes },
         ]);
+        if (reply.tools.some((tool) => INVENTORY_TOOLS.includes(tool.name))) {
+          // Récupéré à la demande : l'injecter plus tôt lancerait son GET dès l'ouverture du chat
+          this.injector.get(InventoryStore).reload();
+        }
       },
       error: (error: unknown) => {
         this.pending.set(false);

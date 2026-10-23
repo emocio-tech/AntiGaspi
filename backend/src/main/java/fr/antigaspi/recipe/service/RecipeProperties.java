@@ -11,7 +11,10 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  *            de l'inventaire lui est aussi fourni, comme complément facultatif
  * @param defaultServings
  *            nombre de portions par défaut
+ * @param feedbackCount
+ *            nombre de recettes cuisinées récemment (avec avis et commentaire) fournies au LLM
  */
 @ConfigurationProperties("antigaspi.recipe")
-public record RecipeProperties(@DefaultValue("8") int maxIngredients, @DefaultValue("2") int defaultServings) {
+public record RecipeProperties(@DefaultValue("8") int maxIngredients, @DefaultValue("2") int defaultServings,
+        @DefaultValue("5") int feedbackCount) {
 }

@@ -1,0 +1,121 @@
+<header class="head">
+  <h1>Historique</h1>
+  <p>Les recettes que vous avez cuisinées et vos retours, utilisés pour les prochaines suggestions</p>
+</header>
+
+@if (store.loading() && store.items().length === 0) {
+  <p class="state" data-testid="loading">Chargement de l'historique…</p>
+} @else if (store.error()) {
+  <div class="state" data-testid="error">
+    <p>Impossible de charger l'historique.</p>
+    <button type="button" class="btn" data-testid="retry" (click)="store.reload()">Réessayer</button>
+  </div>
+} @else if (store.items().length === 0) {
+  <div class="state" data-testid="empty">
+    <p>Vous n’avez encore cuisiné aucune recette.</p>
+    <a routerLink="/recettes" class="btn">Trouver une recette</a>
+  </div>
+} @else {
+  <ul class="list">
+    @for (item of store.items(); track item.id) {
+      <li class="card" data-testid="history-item">
+        <div class="top">
+          <div class="titles">
+            <h2 data-testid="history-title">{{ item.title }}</h2>
+            <p class="date" data-testid="history-date">{{ date(item) }}</p>
+          </div>
+          @if (item.rating) {
+            <span
+              class="rating"
+              data-testid="history-rating"
+              [attr.aria-label]="item.rating === 'UP' ? 'Avis positif' : 'Avis négatif'"
+              >{{ item.rating === 'UP' ? '👍' : '👎' }}</span
+            >
+          }
+        </div>
+
+        @if (editingId() === item.id) {
+          <div class="edit" data-testid="history-edit-form">
+            <div class="thumbs" role="group" aria-label="Avis">
+              <button
+                type="button"
+                class="thumb"
+                data-testid="edit-up"
+                aria-label="J'ai aimé"
+                [attr.aria-pressed]="draftRating() === 'UP'"
+                (click)="rate('UP')"
+              >
+                👍
+              </button>
+              <button
+                type="button"
+                class="thumb"
+                data-testid="edit-down"
+                aria-label="Je n'ai pas aimé"
+                [attr.aria-pressed]="draftRating() === 'DOWN'"
+                (click)="rate('DOWN')"
+              >
+                👎
+              </button>
+            </div>
+            <label class="field">
+              <span>Commentaire</span>
+              <textarea
+                data-testid="edit-comment"
+                rows="3"
+                maxlength="1000"
+                [value]="draftComment()"
+                (input)="draftComment.set($any($event.target).value)"
+              ></textarea>
+            </label>
+            @if (store.actionError(); as message) {
+              <p class="alert" role="alert" data-testid="edit-error">{{ message }}</p>
+            }
+            <div class="actions">
+              <button type="button" class="btn primary" data-testid="edit-save" [disabled]="saving()" (click)="save(item.id)">
+                Enregistrer
+              </button>
+              <button type="button" class="btn" data-testid="edit-cancel" (click)="cancel()">Annuler</button>
+            </div>
+          </div>
+        } @else {
+          @if (item.comment) {
+            <p class="comment" data-testid="history-comment">{{ item.comment }}</p>
+          }
+        }
+
+        @if (opened().includes(item.id)) {
+          <div class="recipe" data-testid="history-recipe">
+            <h3>Ingrédients</h3>
+            <ul>
+              @for (ingredient of item.recipe.ingredients; track $index) {
+                <li>{{ ingredient.quantity }} {{ ingredient.unit }} {{ ingredient.name }}</li>
+              }
+            </ul>
+            <h3>Étapes</h3>
+            <ol>
+              @for (step of item.recipe.steps; track $index) {
+                <li>{{ step }}</li>
+              }
+            </ol>
+          </div>
+        }
+
+        <div class="actions">
+          <button
+            type="button"
+            class="btn"
+            data-testid="history-toggle"
+            [attr.aria-expanded]="opened().includes(item.id)"
+            (click)="toggle(item.id)"
+          >
+            {{ opened().includes(item.id) ? 'Masquer la recette' : 'Voir la recette' }}
+          </button>
+          @if (editingId() !== item.id) {
+            <button type="button" class="btn" data-testid="history-edit" (click)="edit(item)">Modifier mon avis</button>
+          }
+        </div>
+      </li>
+    }
+  </ul>
+}

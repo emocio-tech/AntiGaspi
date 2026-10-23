@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import fr.antigaspi.chat.llm.ChatAssistant;
 import fr.antigaspi.chat.model.ChatReply;
+import fr.antigaspi.recipe.api.RecipeResponse;
 
 /**
  * API REST du chat avec l'assistant, destinée au front. Une seule conversation, gardée en mémoire du serveur.
@@ -29,8 +30,10 @@ public class ChatController {
     @PostMapping
     public ChatResponse send(@RequestBody ChatRequest request) {
         ChatReply reply = assistant.replyWithTools(request.message());
-        return new ChatResponse(reply.text(), reply.tools().stream()
-                .map(tool -> new ChatResponse.ToolCallResponse(tool.name(), tool.arguments())).toList());
+        return new ChatResponse(
+                reply.text(), reply.tools().stream()
+                        .map(tool -> new ChatResponse.ToolCallResponse(tool.name(), tool.arguments())).toList(),
+                reply.recipes().stream().map(RecipeResponse::from).toList());
     }
 
     @GetMapping

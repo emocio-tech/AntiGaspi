@@ -21,6 +21,7 @@ import org.springframework.ai.tool.definition.ToolDefinition;
 import org.springframework.ai.tool.metadata.ToolMetadata;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.event.EventListener;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 
@@ -32,6 +33,8 @@ import fr.antigaspi.chat.model.ChatReply;
 import fr.antigaspi.chat.model.ChatRole;
 import fr.antigaspi.common.ChatTools;
 import fr.antigaspi.common.Resources;
+import fr.antigaspi.recipe.model.GeneratedRecipe;
+import fr.antigaspi.recipe.tool.RecipeGeneratedEvent;
 
 /**
  * Assistant de chat anti-gaspillage : le LLM appelle les tools de l'application quand il en a besoin.
@@ -53,6 +56,9 @@ public class ChatAssistant {
      * qui répond), {@code null} hors de {@link #replyWithTools(String)}.
      */
     private final ThreadLocal<List<ToolCalledEvent>> currentCalls = new ThreadLocal<>();
+
+    /** Recettes générées pendant la réponse en cours sur ce thread, {@code null} hors de {@link #replyWithTools}. */
+    private final ThreadLocal<List<GeneratedRecipe>> currentRecipes = new ThreadLocal<>();
 
     private static final Logger log = LoggerFactory.getLogger(ChatAssistant.class);
 
@@ -110,12 +116,24 @@ public class ChatAssistant {
             throw new IllegalArgumentException("Le message est vide");
         }
         List<ToolCalledEvent> calls = new ArrayList<>();
+        List<GeneratedRecipe> recipes = new ArrayList<>();
         currentCalls.set(calls);
+        currentRecipes.set(recipes);
         try {
             String text = reply(message);
-            return new ChatReply(text, List.copyOf(calls));
+            return new ChatReply(text, List.copyOf(calls), List.copyOf(recipes));
         } finally {
             currentCalls.remove();
+            currentRecipes.remove();
+        }
+    }
+
+    /** Garde la recette générée par {@code genererRecette} pour la réponse en cours ; ignorée hors d'une réponse. */
+    @EventListener
+    public void onRecipeGenerated(RecipeGeneratedEvent event) {
+        List<GeneratedRecipe> recipes = currentRecipes.get();
+        if (recipes != null) {
+            recipes.add(event.generated());
         }
     }
 
